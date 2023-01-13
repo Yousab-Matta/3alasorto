@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="5dp"
+    app:cardCornerRadius="20dp">
+
+    <RelativeLayout
+        android:id="@+id/rl_user_item"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/grey5">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_user_item"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="10dp"
+            android:src="@drawable/image_logo"
+            app:civ_border_color="@color/grey3"
+            app:civ_border_width="1dp" />
+
+        <TextView
+            android:id="@+id/tv_user_name_item"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="10dp"
+            android:layout_toStartOf="@+id/tv_user_percent"
+            android:layout_toEndOf="@+id/iv_user_item"
+            android:paddingVertical="5dp"
+            android:text="@string/app_name"
+            android:textColor="@color/white"
+            android:textSize="30sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_user_percent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="@+id/tv_user_name_item"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="@+id/tv_user_name_item"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="10dp"
+            android:textColor="@color/white"
+            android:textSize="25sp"
+            android:textStyle="bold"
+            android:visibility="visible" />
+
+    </RelativeLayout>
+
+</androidx.cardview.widget.CardView>

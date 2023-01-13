@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "407482333429",
+    "project_id": "ala-sorto",
+    "storage_bucket": "ala-sorto.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:407482333429:android:a42ca7030b7af661436dbc",
+        "android_client_info": {
+          "package_name": "com.example.alasorto"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "407482333429-df24adumh35m6lsj3gkkblsclcgl3tpg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.alasorto",
+            "certificate_hash": "5d0eb8e84f40a5dd3474adedfce9e4e7e55b206e"
+          }
+        },
+        {
+          "client_id": "407482333429-390297q9158n8h072tg45f7kcshacnm5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDq1n2L4fD9FtsfOs2bAjHQbJayzQfa1Kw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "407482333429-390297q9158n8h072tg45f7kcshacnm5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

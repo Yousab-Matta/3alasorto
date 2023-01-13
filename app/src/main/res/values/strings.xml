@@ -1,0 +1,66 @@
+<resources>
+    <string name="app_name">3ala Sorto</string>
+    <string name="login">Login</string>
+    <string name="num_hint">01000000000</string>
+    <string name="my_num">+201063017891</string>
+    <string name="zero">0</string>
+    <string name="verify">Verify</string>
+    <string name="keep_logged_in">Keep logged in</string>
+    <string name="todo">TODO</string>
+    <string name="att_history">Attendance history list</string>
+    <string name="all_users">All users</string>
+    <string name="attended_users">Attended Users</string>
+    <string name="loading">Loading</string>
+    <string name="resend_code">Resend code</string>
+    <string name="user_name">User Name</string>
+    <string name="phone_number">Phone number</string>
+    <string name="address">Address</string>
+    <string name="location">Location</string>
+    <string name="confession_priest">Confession priest</string>
+    <string name="day">Day</string>
+    <string name="month">Month</string>
+    <string name="year">Year</string>
+    <string name="birth_date">Birth Date</string>
+    <string name="points">Points</string>
+    <string name="dummy">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</string>
+    <string name="title">Title</string>
+    <string name="status">Status</string>
+    <string name="college">College</string>
+    <string name="university">University</string>
+    <string name="post_title">Post Title</string>
+    <string name="post_description">Post Description</string>
+    <string name="create_new_post">Create new post</string>
+    <string name="react">React</string>
+    <string name="comment">Comment</string>
+    <string name="comments">Comments</string>
+    <string name="edit_comment">Edit Comment</string>
+    <string name="message">Message</string>
+
+    <string-array name="status_spinner_array">
+        <item>Student</item>
+        <item>Graduated</item>
+    </string-array>
+
+    <string-array name="posts_spinner_array">
+        <item>All</item>
+        <item>Admins</item>
+        <item>Users</item>
+    </string-array>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="edit_post">Edit post</string>
+    <string name="delete_post">Delete post</string>
+    <string name="posts">Posts</string>
+    <string name="connected">Connected</string>
+    <string name="disconnected">No internet connection</string>
+    <string name="delete_comment">Delete Comment</string>
+    <string name="edit">Edit</string>
+    <string name="edit_user">Edit User data</string>
+    <string name="view_user">View User Profile</string>
+    <string name="delete_user">Delete User</string>
+    <string name="delete">Delete</string>
+    <string name="search_for_user">Search for user</string>
+    <string name="add_new_user">Add new user</string>
+    <string name="home">Home</string>
+
+</resources>

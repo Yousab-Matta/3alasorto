@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/fragment_bg">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <Toolbar
+            android:id="@+id/tb_create_event"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/tv_create_event_title"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_gravity="start"
+                android:gravity="center"
+                android:text="@string/create_new_post"
+                android:textColor="@color/white"
+                android:textSize="30sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/ib_create_post"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_gravity="end"
+                android:layout_marginEnd="15dp"
+                android:contentDescription="@string/todo"
+                android:padding="10dp"
+                android:scaleType="fitXY"
+                android:src="@drawable/ic_check"
+                app:tint="@color/white" />
+
+        </Toolbar>
+
+        <View
+            android:id="@+id/view"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:background="@color/grey5"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/tb_create_event" />
+
+        <EditText
+            android:id="@+id/et_create_post_title"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="15dp"
+            android:background="@drawable/custom_input"
+            android:hint="@string/post_title"
+            android:inputType="text"
+            android:nextFocusDown="@id/et_create_post_desc"
+            android:paddingHorizontal="10dp"
+            android:textColor="@color/white"
+            android:textColorHint="@color/grey7"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/view"
+            tools:ignore="Autofill" />
+
+        <EditText
+            android:id="@+id/et_create_post_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="20dp"
+            android:autofillHints=""
+            android:background="@drawable/custom_input"
+            android:hint="@string/post_description"
+            android:inputType="textMultiLine"
+            android:minHeight="50dp"
+            android:paddingHorizontal="10dp"
+            android:textColor="@color/white"
+            android:textColorHint="@color/grey7"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/et_create_post_title" />
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/iv_create_post_select"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginEnd="10dp"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_image"
+            android:tint="@color/grey5"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/et_create_post_desc" />
+
+        <LinearLayout
+            android:id="@+id/ll_create_user"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_centerHorizontal="true"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="20dp"
+            app:layout_constraintEnd_toStartOf="@+id/iv_create_post_select"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/et_create_post_desc">
+
+            <EditText
+                android:id="@+id/et_post_day"
+                android:layout_width="100dp"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="5dp"
+                android:autofillHints=""
+                android:background="@drawable/custom_input"
+                android:gravity="center"
+                android:hint="@string/day"
+                android:inputType="number"
+                android:maxLength="2"
+                android:nextFocusForward="@id/et_birth_month"
+                android:paddingHorizontal="5dp"
+                android:textColor="@color/white"
+                android:textColorHint="@color/grey7"
+                android:textSize="20sp"
+                app:drawableTint="@color/design_default_color_error" />
+
+            <EditText
+                android:id="@+id/et_post_month"
+                android:layout_width="100dp"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="5dp"
+                android:autofillHints=""
+                android:background="@drawable/custom_input"
+                android:gravity="center"
+                android:hint="@string/month"
+                android:inputType="number"
+                android:maxLength="2"
+                android:nextFocusForward="@id/et_birth_year"
+                android:paddingHorizontal="5dp"
+                android:textColor="@color/white"
+                android:textColorHint="@color/grey7"
+                android:textSize="20sp"
+                app:drawableTint="@color/design_default_color_error" />
+
+            <EditText
+                android:id="@+id/et_post_year"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:autofillHints=""
+                android:background="@drawable/custom_input"
+                android:gravity="center"
+                android:hint="@string/year"
+                android:inputType="number"
+                android:maxLength="4"
+                android:paddingHorizontal="5dp"
+                android:textColor="@color/white"
+                android:textColorHint="@color/grey7"
+                android:textSize="20sp"
+                app:drawableTint="@color/design_default_color_error" />
+        </LinearLayout>
+
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/iv_create_post_image"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="20dp"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@+id/iv_create_post_select" />
+
+        <ImageButton
+            android:id="@+id/ib_post_remove_image"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/round_corners"
+            android:backgroundTint="@color/black"
+            android:contentDescription="@string/todo"
+            android:cropToPadding="true"
+            android:padding="5dp"
+            android:src="@drawable/ic_close"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="@+id/iv_create_post_image"
+            app:layout_constraintTop_toTopOf="@+id/iv_create_post_image"
+            app:tint="@color/white" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</ScrollView>
