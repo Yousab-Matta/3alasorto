@@ -6,8 +6,7 @@
     android:background="@drawable/round_top_corners"
     android:backgroundTint="@color/grey4"
     android:orientation="vertical"
-    android:paddingBottom="15dp"
-    app:layout_behavior="@string/bottom_sheet_behavior">
+    android:paddingBottom="15dp">
 
     <View
         android:layout_width="50dp"
@@ -15,10 +14,10 @@
         android:layout_gravity="center"
         android:layout_marginTop="15dp"
         android:background="@drawable/round_corners"
-        android:backgroundTint="@color/grey9" />
+        android:backgroundTint="@color/grey6" />
 
     <LinearLayout
-        android:id="@+id/ll_edit_comment"
+        android:id="@+id/ll_edit"
         android:layout_width="match_parent"
         android:layout_height="40dp"
         android:layout_marginTop="10dp"
@@ -45,7 +44,7 @@
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/ll_delete_comment"
+        android:id="@+id/ll_delete"
         android:layout_width="match_parent"
         android:layout_height="40dp"
         android:layout_marginTop="10dp"

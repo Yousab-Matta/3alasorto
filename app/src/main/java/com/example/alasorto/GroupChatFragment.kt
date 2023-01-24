@@ -40,6 +40,7 @@ class GroupChatFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.fragment_group_chat, container, false)
+        view.isClickable = true
 
         currentUser = (activity as MainActivity).getCurrentUser()
 

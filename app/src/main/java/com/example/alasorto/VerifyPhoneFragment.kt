@@ -44,6 +44,7 @@ class VerifyPhoneFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val view = inflater.inflate(R.layout.fragment_verify_phone, container, false)
+        view.isClickable = true
 
         val args = this.arguments
         id = args?.getString("ID")!!

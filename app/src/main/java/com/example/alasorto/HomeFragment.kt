@@ -2,10 +2,9 @@ package com.example.alasorto
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.app.Dialog
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.os.Bundle
+import android.util.DisplayMetrics
 import android.view.*
 import android.widget.*
 import androidx.fragment.app.Fragment
@@ -20,20 +19,21 @@ import com.example.alasorto.dataClass.Users
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
-class HomeFragment : Fragment(), PostsAdapter.OnClickListener {
+class HomeFragment : Fragment(), PostsAdapter.OnClickListener,
+    PostsBottomSheet.OnPostSettingsItemClick {
     private val postsList = ArrayList<Posts>()
-    private val postsOwnersList = ArrayList<Users>()
-
+    private val allUsersList = ArrayList<Users>()
+    private val dialog = PostsBottomSheet(this)
     private lateinit var postsRV: RecyclerView
+
     private lateinit var addPostBtn: ImageButton
     private lateinit var userImageIV: ImageView
-    private lateinit var postTypeSpinner: Spinner
     private lateinit var viewModel: AppViewModel
     private lateinit var postsAdapter: PostsAdapter
     private lateinit var internetCheck: InternetCheck
     private lateinit var post: Posts
+    private var height: Int = 0
     private var currentUser: Users? = null
-
     private var hasConnection = false
 
     @SuppressLint("NotifyDataSetChanged")
@@ -42,22 +42,25 @@ class HomeFragment : Fragment(), PostsAdapter.OnClickListener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        //Inflate view
+        return layoutInflater.inflate(R.layout.fragment_home, container, false)
+    }
 
-        currentUser = (activity as MainActivity).getCurrentUser()
+    @SuppressLint("NotifyDataSetChanged")
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
-        val view = layoutInflater.inflate(R.layout.fragment_posts, container, false)
-        postsRV = view.findViewById(R.id.rv_admin_posts)
-        addPostBtn = view.findViewById(R.id.btn_add_admin_post)
-        postTypeSpinner = view.findViewById(R.id.spinner_post_type)
-        userImageIV = view.findViewById(R.id.iv_home_user)
+        view.isClickable = true
 
-        postsRV.layoutManager = LinearLayoutManager(context)
-
-        //Initialize ViewModel
-        viewModel = ViewModelProvider(this)[AppViewModel::class.java]
-
-        Glide.with(requireContext()).load(currentUser!!.ImageLink.toString())
-            .into(userImageIV)
+        val displayMetrics = DisplayMetrics()
+        height = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            requireActivity().windowManager.maximumWindowMetrics.bounds.height()
+            displayMetrics.heightPixels
+        } else {
+            @Suppress("DEPRECATION")
+            requireActivity().windowManager.defaultDisplay.getMetrics(displayMetrics)
+            displayMetrics.heightPixels
+        }
 
         //Check internet connection
         internetCheck = InternetCheck(requireActivity().application)
@@ -68,7 +71,31 @@ class HomeFragment : Fragment(), PostsAdapter.OnClickListener {
             }
         }
 
-        postsAdapter = PostsAdapter(postsList, postsOwnersList, this, this)
+        //Get current user data
+        currentUser = (activity as MainActivity).getCurrentUser()
+
+        //Get all users
+        allUsersList.addAll((activity as MainActivity).getAllUsers())
+
+        //Initialize views
+        postsRV = view.findViewById(R.id.rv_admin_posts)
+        addPostBtn = view.findViewById(R.id.btn_add_admin_post)
+        userImageIV = view.findViewById(R.id.iv_home_user)
+
+        //Set linear layout manager to recyclerView
+        postsRV.layoutManager = LinearLayoutManager(context)
+
+        postsRV.addItemDecoration(SpacingItemDecorator(30))
+
+        //Initialize ViewModel
+        viewModel = ViewModelProvider(this)[AppViewModel::class.java]
+
+        //set user image to imageView
+        Glide.with(requireContext()).load(currentUser!!.ImageLink.toString())
+            .into(userImageIV)
+
+        //Initialize adapter and set it to recyclerview
+        postsAdapter = PostsAdapter(postsList, allUsersList, this, this)
         postsRV.adapter = postsAdapter
 
         //Observe Posts List
@@ -76,22 +103,11 @@ class HomeFragment : Fragment(), PostsAdapter.OnClickListener {
             if (it != null) {
                 postsList.clear()
                 postsList.addAll(it)
-                for (post in postsList) {
-                    if (hasConnection) {
-                        viewModel.getUserById(post.OwnerID.toString())
-                    }
-                }
                 postsAdapter.notifyDataSetChanged()
             }
         })
 
-        viewModel.otherUserDataMLD.observe(this.viewLifecycleOwner, Observer {
-            if (!postsOwnersList.contains(it)) {
-                postsOwnersList.add(it)
-                postsAdapter.notifyDataSetChanged()
-            }
-        })
-
+        //OnClick Listeners
         addPostBtn.setOnClickListener(View.OnClickListener {
             val fragment = CreatePostFragment()
             val manager = requireActivity().supportFragmentManager
@@ -100,7 +116,7 @@ class HomeFragment : Fragment(), PostsAdapter.OnClickListener {
             bundle.putBoolean("IsNewPost", true)
             fragment.arguments = bundle
             transaction.add(R.id.main_frame, fragment)
-            transaction.addToBackStack(null)
+            transaction.addToBackStack("HANDLE_POSTS_FRAGMENT")
             transaction.commit()
         })
 
@@ -114,75 +130,48 @@ class HomeFragment : Fragment(), PostsAdapter.OnClickListener {
                 viewModel.getPosts()
             }
         }
-
-        return view
     }
 
     override fun onClick(post: Posts) {
         this.post = post
     }
 
-    fun goToComments() {
-        val fragment = CommentsFragment()
+    fun showComments(postKey: String) {
+        val commentsFragment = CommentsBottomFragment(postKey, height)
+        commentsFragment.show(requireActivity().supportFragmentManager, "COMMENTS_BOTTOM_SHEETS")
+    }
+
+    fun showSettingsDialog() {
+        dialog.show(requireActivity().supportFragmentManager, "POSTS_BOTTOM_SHEETS")
+    }
+
+    private fun editPost() {
+        val fragment = CreatePostFragment()
         val manager = requireActivity().supportFragmentManager
         val transaction = manager.beginTransaction()
         val bundle = Bundle()
-        bundle.putString("PostKey", post.ID)
+        bundle.putParcelable("Editing_Post", post)
+        bundle.putBoolean("IsNewPost", false)
         fragment.arguments = bundle
         transaction.add(R.id.main_frame, fragment)
-        transaction.addToBackStack("Comments")
+        transaction.addToBackStack("HANDLE_POSTS_FRAGMENT")
         transaction.commit()
+        dialog.dismiss()
     }
 
-    fun showDialog() {
-        if (currentUser!!.Phone.toString() == post.OwnerID
-            || currentUser!!.Access != "User"
-        ) {
-            val dialog = Dialog(requireContext())
-            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-            dialog.setContentView(R.layout.bottom_sheet_posts)
-
-            val editCommentLL: LinearLayout = dialog.findViewById(R.id.ll_edit_comment)
-            val deleteCommentLL: LinearLayout = dialog.findViewById(R.id.ll_delete_comment)
-
-            editCommentLL.setOnClickListener(View.OnClickListener {
-                val fragment = CreatePostFragment()
-                val manager = requireActivity().supportFragmentManager
-                val transaction = manager.beginTransaction()
-                val bundle = Bundle()
-                bundle.putParcelable("Editing_Post", post)
-                bundle.putBoolean("IsNewPost", false)
-                fragment.arguments = bundle
-                transaction.add(R.id.main_frame, fragment)
-                transaction.addToBackStack(null)
-                transaction.commit()
-                dialog.dismiss()
-            })
-
-            deleteCommentLL.setOnClickListener(View.OnClickListener {
-                val builder: AlertDialog.Builder = AlertDialog.Builder(activity as MainActivity)
-                builder.setCancelable(true)
-                builder.setTitle("Delete post?")
-                builder.setMessage("Are you sure you want to delete this post?")
-                builder.setPositiveButton("Yes") { _, _ ->
-                    if (hasConnection) {
-                        viewModel.deletePost(post.ID.toString())
-                    }
-                }
-                builder.setNegativeButton("No") { _, _ -> }
-                builder.show()
-                dialog.dismiss()
-            })
-
-            dialog.show()
-            dialog.window?.setLayout(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
-            dialog.window?.setGravity(Gravity.BOTTOM)
+    private fun deletePost() {
+        val builder: AlertDialog.Builder = AlertDialog.Builder(activity as MainActivity)
+        builder.setCancelable(true)
+        builder.setTitle("Delete post?")
+        builder.setMessage("Are you sure you want to delete this post?")
+        builder.setPositiveButton("Yes") { _, _ ->
+            if (hasConnection) {
+                viewModel.deletePost(post.ID.toString())
+            }
         }
+        builder.setNegativeButton("No") { _, _ -> }
+        builder.show()
+        dialog.dismiss()
     }
 
     fun goToProfileFragment(user: Users?) {
@@ -202,8 +191,16 @@ class HomeFragment : Fragment(), PostsAdapter.OnClickListener {
             args.putParcelableArrayList("Profile_Posts", profilePostsList)
             fragment.arguments = args
             transaction.add(R.id.main_frame, fragment)
-            transaction.addToBackStack(null)
+            transaction.addToBackStack("PROFILE_FRAGMENT")
             transaction.commit()
+        }
+    }
+
+    override fun onPostSettingsClick(case: String) {
+        if (case == "Edit"){
+            editPost()
+        }else if (case == "Delete"){
+            deletePost()
         }
     }
 }

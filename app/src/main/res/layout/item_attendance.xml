@@ -6,19 +6,19 @@
     android:layout_margin="5dp"
     app:cardCornerRadius="20dp">
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btn_att_name"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingHorizontal="20dp"
-            android:paddingVertical="10dp"
-            android:background="@color/grey5"
-            android:backgroundTint="@color/btn_color"
-            android:textAllCaps="false"
-            android:gravity="start"
-            android:text="@string/app_name"
-            android:textColor="@color/white"
-            android:textSize="30sp"
-            android:textStyle="bold" />
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_att_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/grey5"
+        android:backgroundTint="@color/btn_color"
+        android:gravity="start"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="5dp"
+        android:text="@string/app_name"
+        android:textAllCaps="false"
+        android:textColor="@color/white"
+        android:textSize="30sp"
+        android:textStyle="bold" />
 
 </androidx.cardview.widget.CardView>

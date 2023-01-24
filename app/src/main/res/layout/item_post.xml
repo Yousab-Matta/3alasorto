@@ -4,18 +4,17 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginVertical="10dp"
     app:cardCornerRadius="20dp">
 
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/grey2">
+        android:background="@color/grey4">
 
         <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/iv_post_owner"
-            android:layout_width="35dp"
-            android:layout_height="35dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="10dp"
             android:layout_marginTop="10dp"
@@ -44,8 +43,7 @@
             android:layout_below="@+id/tv_post_date"
             android:layout_marginTop="5dp"
             android:adjustViewBounds="true"
-            android:scaleType="fitStart"
-            android:src="@drawable/image_logo" />
+            android:scaleType="fitStart" />
 
         <ImageView
             android:id="@+id/iv_post_menu"
@@ -83,7 +81,7 @@
             android:layout_toStartOf="@+id/iv_post_menu"
             android:layout_toEndOf="@+id/iv_post_owner"
             android:paddingVertical="5dp"
-            android:textColor="@color/grey7"
+            android:textColor="@color/grey9"
             android:textSize="13sp"
             android:textStyle="bold" />
 

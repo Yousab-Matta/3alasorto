@@ -16,9 +16,11 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
@@ -44,8 +46,8 @@ class CreatePostFragment : Fragment() {
     private lateinit var removeImageBtn: ImageButton
     private lateinit var createPostBtn: ImageButton
     private lateinit var viewModel: AppViewModel
-    private lateinit var builder: AlertDialog.Builder
     private lateinit var dialog: AlertDialog
+    private lateinit var builder: AlertDialog.Builder
     private lateinit var window: Window
     private lateinit var internetCheck: InternetCheck
     private lateinit var postImageLink: String
@@ -60,11 +62,7 @@ class CreatePostFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         val view: View = inflater.inflate(R.layout.fragment_create_post, container, false)
-
-        internetCheck = InternetCheck(requireActivity().application)
-        internetCheck.observe(this.viewLifecycleOwner) {
-            hasConnection = it
-        }
+        view.isClickable = true
 
         //Initialize Widgets
         titleET = view.findViewById(R.id.et_create_post_title)
@@ -110,6 +108,19 @@ class CreatePostFragment : Fragment() {
             }
         }
 
+        viewModel = ViewModelProvider(this)[AppViewModel::class.java]
+
+        return view
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        internetCheck = InternetCheck(requireActivity().application)
+        internetCheck.observe(this.viewLifecycleOwner) {
+            hasConnection = it
+        }
+
         //Create Alert Dialogue
         builder = AlertDialog.Builder(context)
         builder.setCancelable(false)
@@ -118,12 +129,12 @@ class CreatePostFragment : Fragment() {
         window = dialog.window!!
         window.setBackgroundDrawableResource(android.R.color.transparent)
 
-        viewModel = ViewModelProvider(this)[AppViewModel::class.java]
-
         viewModel.clearFragmentMLD.observe(this.viewLifecycleOwner, Observer {
             if (it) {
                 dialog.dismiss()
-                requireActivity().supportFragmentManager.popBackStack()
+                requireActivity().supportFragmentManager.popBackStack(
+                    "HANDLE_POSTS_FRAGMENT", FragmentManager.POP_BACK_STACK_INCLUSIVE
+                )
             }
         })
 
@@ -139,7 +150,6 @@ class CreatePostFragment : Fragment() {
         })
 
         createPostBtn.setOnClickListener(View.OnClickListener {
-            dialog.show()
             //List that contains the ETs that MUST be filled
             val viewsList = arrayListOf(
                 titleET,
@@ -162,35 +172,55 @@ class CreatePostFragment : Fragment() {
                 }
             }
 
+            //Get TVs texts to String
             val title = titleET.text.toString().trim()
             val desc = descET.text.toString().trim()
             val day = dayET.text.toString().trim()
             val month = monthET.text.toString().trim()
             val year = yearET.text.toString().trim()
-            if (title.isNotEmpty() && desc.isNotEmpty() && day.isNotEmpty()
-                && month.isNotEmpty() && year.isNotEmpty()
-            ) {
-                if (isNewPost) {
-                    viewModel.createPost(
-                        title,
-                        desc,
-                        Firebase.auth.currentUser?.phoneNumber.toString(),
-                        day.toInt(),
-                        month.toInt(),
-                        year.toInt(),
-                        postImage,
-                        requireActivity().contentResolver
-                    )
+
+            //Check internet connection
+            if (hasConnection) {
+                if (title.isNotEmpty() && desc.isNotEmpty() && day.isNotEmpty()
+                    && month.isNotEmpty() && year.isNotEmpty()
+                ) {
+                    dialog.show()
+                    if (isNewPost) {
+                        viewModel.createPost(
+                            title,
+                            desc,
+                            Firebase.auth.currentUser?.phoneNumber.toString(),
+                            day.toInt(),
+                            month.toInt(),
+                            year.toInt(),
+                            postImage,
+                            requireActivity().contentResolver
+                        )
+                    } else {
+                        viewModel.editPost(
+                            title, desc, postId, postImageLink, day.toInt(), month.toInt(),
+                            year.toInt(), postImage, requireActivity().contentResolver
+                        )
+                    }
                 } else {
-                    viewModel.editPost(
-                        title, desc, postId, postImageLink, day.toInt(), month.toInt(),
-                        year.toInt(), postImage, requireActivity().contentResolver
-                    )
+                    Toast.makeText(context, R.string.missing_data, Toast.LENGTH_SHORT).show()
                 }
+            }else{
+                Toast.makeText(context, R.string.check_internet, Toast.LENGTH_SHORT).show()
             }
         })
 
-        return view
+        requireActivity().onBackPressedDispatcher.addCallback(
+            this.viewLifecycleOwner, object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    activity!!.supportFragmentManager.popBackStack(
+                        "HANDLE_POSTS_FRAGMENT",
+                        FragmentManager.POP_BACK_STACK_INCLUSIVE
+                    )
+                    this.isEnabled = false
+                }
+            })
+
     }
 
     //Crop Image
@@ -217,6 +247,7 @@ class CreatePostFragment : Fragment() {
                         R.color.white
                     )
                 )
+
                 options.setFreeStyleCropEnabled(true)
                 options.setAllowedGestures(SCALE, ALL, SCALE)
 

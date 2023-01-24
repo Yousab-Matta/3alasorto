@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">3ala Sorto</string>
     <string name="login">Login</string>
-    <string name="num_hint">01000000000</string>
+    <string name="num_hint">01XXXXXXXXX</string>
     <string name="my_num">+201063017891</string>
     <string name="zero">0</string>
     <string name="verify">Verify</string>
@@ -62,5 +62,26 @@
     <string name="search_for_user">Search for user</string>
     <string name="add_new_user">Add new user</string>
     <string name="home">Home</string>
+    <string name="give_admin_rights">Give admin rights</string>
+    <string name="personal_reminders">Personal reminders</string>
+    <string name="create_a_new_reminder">Create a new reminder</string>
+    <string name="reminder_title">Reminder title</string>
+    <string name="reminder_desc">Reminder description</string>
+    <string name="reminder_type">Reminder type (eg. confession, etc…)</string>
+    <string name="reminder_date">Reminder date</string>
+    <string name="create_custom_notification">Create custom notification</string>
+    <string name="notification_title">Notification title</string>
+    <string name="notification_description">Notification description</string>
+    <string name="send">Send</string>
+    <string name="select_users">Select users</string>
+    <string name="groups">Groups</string>
+    <string name="create">Create</string>
+    <string name="group_name">Group name</string>
+    <string name="add_points">Add points</string>
+    <string name="points_number">Enter number of points</string>
+    <string name="confirm">Confirm</string>
+    <string name="missing_data">Please fill missing data</string>
+    <string name="check_internet">Please check your internet connection</string>
+    <string name="points_added">Points were added</string>
 
 </resources>

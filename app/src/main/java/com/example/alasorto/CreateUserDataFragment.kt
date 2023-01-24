@@ -13,9 +13,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.*
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
@@ -63,6 +65,7 @@ class CreateUserDataFragment : Fragment(), AdapterView.OnItemSelectedListener {
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.fragment_create_user_data, container, false)
+        view.isClickable = true
 
         val args = this.arguments
         if (args != null) {
@@ -165,6 +168,17 @@ class CreateUserDataFragment : Fragment(), AdapterView.OnItemSelectedListener {
         {
             openGalleryForImage()
         })
+
+        requireActivity().onBackPressedDispatcher.addCallback(
+            this.viewLifecycleOwner, object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    requireActivity().supportFragmentManager.popBackStack(
+                        "HANDLE_USERS_FRAGMENT",
+                        FragmentManager.POP_BACK_STACK_INCLUSIVE
+                    )
+                    this.isEnabled = false
+                }
+            })
 
         return view
     }
@@ -312,7 +326,9 @@ class CreateUserDataFragment : Fragment(), AdapterView.OnItemSelectedListener {
             uniET.text.clear()
             statusYearET.text.clear()
             userIV.setImageURI(null)
-            requireActivity().supportFragmentManager.popBackStack()
+            requireActivity().supportFragmentManager.popBackStack(
+                "CREATE_USER_DATA_FRAGMENT", FragmentManager.POP_BACK_STACK_INCLUSIVE
+            )
         } else {
             Toast.makeText(context, "Data were not uploaded", Toast.LENGTH_SHORT).show()
         }

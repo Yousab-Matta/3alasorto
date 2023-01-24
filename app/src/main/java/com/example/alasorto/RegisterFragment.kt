@@ -31,6 +31,8 @@ class RegisterFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         val view: View = inflater.inflate(R.layout.fragment_register, container, false)
+        view.isClickable = true
+
         phoneNumTV = view.findViewById(R.id.tv_phone_num)
         sendCodeBtn = view.findViewById(R.id.btn_send_code)
 

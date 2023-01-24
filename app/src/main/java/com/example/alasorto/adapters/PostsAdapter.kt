@@ -1,7 +1,6 @@
 package com.example.alasorto.adapters
 
 import android.annotation.SuppressLint
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -82,10 +81,10 @@ class PostsAdapter(
         override fun onClick(p0: View?) {
             if (p0 == commentTV) {
                 mListener.onClick(mPostsList[adapterPosition])
-                mFragment.goToComments()
+                mFragment.showComments(mPostsList[adapterPosition].ID.toString())
             } else if (p0 == postMenuIV) {
                 mListener.onClick(mPostsList[adapterPosition])
-                mFragment.showDialog()
+                mFragment.showSettingsDialog()
             } else if (p0 == nameTV || p0 == ownerIV) {
                 for (owner in mPostsOwnersList) {
                     if (mPostsList[adapterPosition].OwnerID.toString() == owner.Phone.toString()) {

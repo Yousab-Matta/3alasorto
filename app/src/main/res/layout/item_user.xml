@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cv_user_item"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="5dp"
+    app:cardBackgroundColor="@color/grey5"
     app:cardCornerRadius="20dp">
 
     <RelativeLayout
         android:id="@+id/rl_user_item"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/grey5">
+        android:layout_height="wrap_content">
 
         <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/iv_user_item"
@@ -23,7 +24,7 @@
             app:civ_border_width="1dp" />
 
         <TextView
-            android:id="@+id/tv_user_name_item"
+            android:id="@+id/tv_user_item_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="10dp"
@@ -39,9 +40,9 @@
             android:id="@+id/tv_user_percent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentTop="@+id/tv_user_name_item"
+            android:layout_alignParentTop="@+id/tv_user_item_name"
             android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="@+id/tv_user_name_item"
+            android:layout_alignParentBottom="@+id/tv_user_item_name"
             android:layout_centerVertical="true"
             android:layout_marginEnd="10dp"
             android:textColor="@color/white"

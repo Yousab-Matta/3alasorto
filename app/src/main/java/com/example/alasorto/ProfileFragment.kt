@@ -1,8 +1,10 @@
 package com.example.alasorto
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.os.Build
 import android.os.Bundle
+import android.util.DisplayMetrics
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,7 +12,9 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -22,13 +26,16 @@ import com.example.alasorto.dataClass.Users
 import com.ramijemli.percentagechartview.PercentageChartView
 
 @Suppress("DEPRECATION")
-class ProfileFragment : Fragment(), ProfilePostsAdapter.OnClickListener {
+class ProfileFragment : Fragment(), ProfilePostsAdapter.OnClickListener,
+    PostsBottomSheet.OnPostSettingsItemClick {
     private val postsList = ArrayList<Posts>()
+    private val dialog = PostsBottomSheet(this)
 
     private lateinit var handleUsersIV: ImageView
     private lateinit var handleAttIV: ImageView
-    private lateinit var handlePostsIV: ImageView
-    private lateinit var groupChatIV: ImageView
+    private lateinit var handleGroupsIV: ImageView
+    private lateinit var handleRemindersIV: ImageView
+    private lateinit var notificationIV: ImageView
     private lateinit var userIV: ImageView
     private lateinit var progressView: PercentageChartView
     private lateinit var controlLL: LinearLayout
@@ -37,6 +44,9 @@ class ProfileFragment : Fragment(), ProfilePostsAdapter.OnClickListener {
     private lateinit var nameTV: TextView
     private lateinit var internetCheck: InternetCheck
     private lateinit var adapter: ProfilePostsAdapter
+    private lateinit var post: Posts
+
+    private var height: Int = 0
     private var user: Users? = null
     private var hasConnection = false
 
@@ -46,11 +56,30 @@ class ProfileFragment : Fragment(), ProfilePostsAdapter.OnClickListener {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_profile, container, false)
+        return inflater.inflate(R.layout.fragment_profile, container, false)
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        view.isClickable = true
+
+        val displayMetrics = DisplayMetrics()
+        height = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            requireActivity().windowManager.maximumWindowMetrics.bounds.height()
+            displayMetrics.heightPixels
+        } else {
+            @Suppress("DEPRECATION")
+            requireActivity().windowManager.defaultDisplay.getMetrics(displayMetrics)
+            displayMetrics.heightPixels
+        }
+
         handleUsersIV = view.findViewById(R.id.iv_user)
-        handlePostsIV = view.findViewById(R.id.iv_create_post)
+        handleGroupsIV = view.findViewById(R.id.iv_handle_groups)
+        handleRemindersIV = view.findViewById(R.id.iv_create_post)
         handleAttIV = view.findViewById(R.id.iv_create_att)
-        groupChatIV = view.findViewById(R.id.iv_group_chat)
+        notificationIV = view.findViewById(R.id.iv_group_chat)
         nameTV = view.findViewById(R.id.tv_profile_name)
         userIV = view.findViewById(R.id.iv_profile_image)
         progressView = view.findViewById(R.id.profile_progress_view)
@@ -59,8 +88,8 @@ class ProfileFragment : Fragment(), ProfilePostsAdapter.OnClickListener {
 
         postsRV.layoutManager = LinearLayoutManager(requireContext())
 
-        //Initialize view model (passing activity as context)
-        viewModel = ViewModelProvider(requireActivity())[AppViewModel::class.java]
+        //Initialize view model
+        viewModel = ViewModelProvider(this)[AppViewModel::class.java]
 
         //Get arguments
         val args = this.arguments
@@ -82,7 +111,7 @@ class ProfileFragment : Fragment(), ProfilePostsAdapter.OnClickListener {
                 }
             }
         } else {
-            user = viewModel.currentUserMLD.value
+            user = (activity as MainActivity).getCurrentUser()
         }
 
         //Check account access type and hide control buttons if not admin
@@ -90,7 +119,7 @@ class ProfileFragment : Fragment(), ProfilePostsAdapter.OnClickListener {
             controlLL.visibility = View.GONE
         }
 
-        adapter = ProfilePostsAdapter(postsList, user!!, this)
+        adapter = ProfilePostsAdapter(postsList, user!!, this, this)
         postsRV.adapter = adapter
 
         //Check internet connection
@@ -127,7 +156,19 @@ class ProfileFragment : Fragment(), ProfilePostsAdapter.OnClickListener {
             val manager = requireActivity().supportFragmentManager
             val transaction = manager.beginTransaction()
             transaction.add(R.id.main_frame, fragment)
-            transaction.addToBackStack(null)
+            transaction.addToBackStack("ALL_USERS_FRAGMENT")
+            transaction.commit()
+        })
+
+        handleGroupsIV.setOnClickListener(View.OnClickListener {
+            val fragment = GroupsFragment()
+            val manager = requireActivity().supportFragmentManager
+            val transaction = manager.beginTransaction()
+            val bundle = Bundle()
+            bundle.putBoolean("SelectionEnabled", false)
+            fragment.arguments = bundle
+            transaction.add(R.id.main_frame, fragment)
+            transaction.addToBackStack("GROUPS_FRAGMENT")
             transaction.commit()
         })
 
@@ -136,52 +177,113 @@ class ProfileFragment : Fragment(), ProfilePostsAdapter.OnClickListener {
             val manager = requireActivity().supportFragmentManager
             val transaction = manager.beginTransaction()
             transaction.add(R.id.main_frame, fragment)
-            transaction.addToBackStack(null)
+            transaction.addToBackStack("ATTENDANCE_FRAGMENT")
             transaction.commit()
         })
 
-        handlePostsIV.setOnClickListener(View.OnClickListener {
-            val fragment = HomeFragment()
+        handleRemindersIV.setOnClickListener(View.OnClickListener {
+            val fragment = RemindersFragment()
             val manager = requireActivity().supportFragmentManager
             val transaction = manager.beginTransaction()
             transaction.add(R.id.main_frame, fragment)
-            transaction.addToBackStack(null)
+            transaction.addToBackStack("REMINDERS_FRAGMENT")
             transaction.commit()
         })
 
-        groupChatIV.setOnClickListener(View.OnClickListener {
-            val fragment = GroupChatFragment()
+        notificationIV.setOnClickListener(View.OnClickListener {
+            val fragment = CreateNotificationFragment()
             val manager = requireActivity().supportFragmentManager
             val transaction = manager.beginTransaction()
             transaction.add(R.id.main_frame, fragment)
-            transaction.addToBackStack(null)
+            transaction.addToBackStack("CUSTOM_NOTIF_FRAGMENT")
             transaction.commit()
         })
+
         ////////////////////////////////////////////////////////////////////////
 
         //OnLongClickListener
         handleUsersIV.setOnLongClickListener(View.OnLongClickListener {
-            Toast.makeText(context, "Handle Users", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Handle users", Toast.LENGTH_SHORT).show()
             return@OnLongClickListener true
         })
         handleAttIV.setOnLongClickListener(View.OnLongClickListener {
-            Toast.makeText(context, "Handle Attendance", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Handle attendance", Toast.LENGTH_SHORT).show()
             return@OnLongClickListener true
         })
-        handlePostsIV.setOnLongClickListener(View.OnLongClickListener {
-            Toast.makeText(context, "Handle Posts", Toast.LENGTH_SHORT).show()
+        handleRemindersIV.setOnLongClickListener(View.OnLongClickListener {
+            Toast.makeText(context, "Handle reminders", Toast.LENGTH_SHORT).show()
+            return@OnLongClickListener true
+        })
+        notificationIV.setOnLongClickListener(View.OnLongClickListener {
+            Toast.makeText(context, "Send custom notification", Toast.LENGTH_SHORT).show()
             return@OnLongClickListener true
         })
 
-        return view
+        handleGroupsIV.setOnLongClickListener(View.OnLongClickListener {
+            Toast.makeText(context, "Handle groups", Toast.LENGTH_SHORT).show()
+            return@OnLongClickListener true
+        })
+
+        requireActivity().onBackPressedDispatcher.addCallback(
+            this.viewLifecycleOwner, object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    requireActivity().supportFragmentManager.popBackStack(
+                        "PROFILE_FRAGMENT",
+                        FragmentManager.POP_BACK_STACK_INCLUSIVE
+                    )
+                    this.isEnabled = false
+                }
+            })
     }
 
     override fun onClick(post: Posts) {
+        this.post = post
+
     }
 
-    @SuppressLint("NotifyDataSetChanged")
-    override fun onDestroyView() {
-        super.onDestroyView()
-        requireActivity().supportFragmentManager.popBackStack()
+    fun showComments(postKey: String) {
+        val commentsFragment = CommentsBottomFragment(postKey, height)
+        commentsFragment.show(requireActivity().supportFragmentManager, "COMMENTS_BOTTOM_SHEETS")
+    }
+
+    fun showSettingsDialog() {
+        dialog.show(requireActivity().supportFragmentManager, "POSTS_BOTTOM_SHEETS")
+    }
+
+    private fun editPost() {
+        val fragment = CreatePostFragment()
+        val manager = requireActivity().supportFragmentManager
+        val transaction = manager.beginTransaction()
+        val bundle = Bundle()
+        bundle.putParcelable("Editing_Post", post)
+        bundle.putBoolean("IsNewPost", false)
+        fragment.arguments = bundle
+        transaction.add(R.id.main_frame, fragment)
+        transaction.addToBackStack("HANDLE_POSTS_FRAGMENT")
+        transaction.commit()
+        dialog.dismiss()
+    }
+
+    private fun deletePost() {
+        val builder: AlertDialog.Builder = AlertDialog.Builder(activity as MainActivity)
+        builder.setCancelable(true)
+        builder.setTitle("Delete post?")
+        builder.setMessage("Are you sure you want to delete this post?")
+        builder.setPositiveButton("Yes") { _, _ ->
+            if (hasConnection) {
+                viewModel.deletePost(post.ID.toString())
+            }
+        }
+        builder.setNegativeButton("No") { _, _ -> }
+        builder.show()
+        dialog.dismiss()
+    }
+
+    override fun onPostSettingsClick(case: String) {
+        if (case == "Edit") {
+            editPost()
+        } else if (case == "Delete") {
+            deletePost()
+        }
     }
 }

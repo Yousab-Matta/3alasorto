@@ -36,6 +36,8 @@ class AppViewModel : ViewModel() {
     var commentsMLD = MutableLiveData<ArrayList<Comments>>()
     var postsMLD = MutableLiveData<ArrayList<Posts>>()
     var profilePostsMLD = MutableLiveData<ArrayList<Posts>>()
+    var remindersMLD = MutableLiveData<ArrayList<Reminder>>()
+    var groupsMLD = MutableLiveData<ArrayList<Group>>()
 
     fun createUser(user: Users, uri: Uri?, contentResolver: ContentResolver) {
         val reference = db.collection("Users").document(user.Phone.toString())
@@ -147,6 +149,15 @@ class AppViewModel : ViewModel() {
         }
     }
 
+    fun addUserPoints(pointsNum: Int, userId: String) {
+        val reference = db.collection("Users").document(userId)
+        reference.update("Points", pointsNum).addOnCompleteListener(OnCompleteListener {
+            if (it.isSuccessful) {
+                clearFragmentMLD.value = true
+            }
+        })
+    }
+
     fun deleteUser(id: String) {
         db.collection("Users").document(id).delete()
         val storageReference = FirebaseStorage.getInstance()
@@ -201,12 +212,13 @@ class AppViewModel : ViewModel() {
         image: Uri?,
         contentResolver: ContentResolver
     ) {
-        db.collection("Posts").document(id).update("Title", title)
-        db.collection("Posts").document(id).update("Description", desc)
-        db.collection("Posts").document(id).update("Day", day)
-        db.collection("Posts").document(id).update("Month", month)
-        db.collection("Posts").document(id).update("Year", year)
-        db.collection("Posts").document(id).update("ImageLink", imageLink)
+        val reference = db.collection("Posts").document(id)
+        reference.update("Title", title)
+        reference.update("Description", desc)
+        reference.update("Day", day)
+        reference.update("Month", month)
+        reference.update("Year", year)
+        reference.update("ImageLink", imageLink)
             .addOnCompleteListener(OnCompleteListener {
                 if (it.isSuccessful) {
                     if (image != null) {
@@ -259,14 +271,12 @@ class AppViewModel : ViewModel() {
         storageReference.delete()
     }
 
-    fun createAttendance(usersIds: ArrayList<String>, usersNames: ArrayList<String>) {
+    fun createAttendance(usersIds: ArrayList<String>) {
         //Create new Attendance data on Firebase
         val reference = db.collection("Attendance")
         //Get current Date
         val date = Date()
-        val attMap = hashMapOf(
-            "Date" to date, "UsersIDs" to usersIds, "UsersNames" to usersNames
-        )
+        val attMap = hashMapOf("Date" to date, "UsersIDs" to usersIds)
         reference.add(attMap).addOnSuccessListener(OnSuccessListener {
             reference.get().addOnCompleteListener(OnCompleteListener {
                 /*Gets Total Number for Attendance Records and trigger observer in fragment to
@@ -348,14 +358,16 @@ class AppViewModel : ViewModel() {
     ) {
         val reference = db.collection("Comments")
         val commentId = reference.document().id
+        val date = Date()
         val commentMap = hashMapOf(
             "PostID" to postId,
             "Comment" to comment,
             "OwnerID" to commentOwnerId,
             "CommentID" to commentId,
-            "Date" to Date()
+            "Date" to date
         )
-        reference.document(commentId).set(commentMap)
+        reference.document(commentId).set(commentMap).addOnCompleteListener(OnCompleteListener {
+        })
     }
 
     fun getPostComments(postId: String) {
@@ -371,7 +383,8 @@ class AppViewModel : ViewModel() {
 
     fun deletePostComment(commentID: String) {
         val reference = db.collection("Comments").document(commentID)
-        reference.delete()
+        reference.delete().addOnCompleteListener(OnCompleteListener {
+        })
     }
 
     fun editComment(commentID: String, newComment: String) {
@@ -414,6 +427,66 @@ class AppViewModel : ViewModel() {
                 groupChatMLD.value = chatList
             }
         })
+    }
+
+    fun createReminder(reminder: Reminder) {
+        val reference = db.collection("Reminders")
+        val id = reference.document().id
+        val map = hashMapOf(
+            "Title" to reminder.Title,
+            "Desc" to reminder.Desc,
+            "Type" to reminder.Type,
+            "ReminderID" to id,
+            "OwnerID" to reminder.OwnerID,
+            "Day" to reminder.Day,
+            "Month" to reminder.Month,
+            "Year" to reminder.Year
+        )
+        reference.document(id).set(map).addOnCompleteListener(OnCompleteListener {
+            if (it.isSuccessful) {
+                clearFragmentMLD.value = true
+            }
+        })
+    }
+
+    fun getReminders(myId: String) {
+        val remindersList = ArrayList<Reminder>()
+        val reference = db.collection("Reminders").whereEqualTo("OwnerID", myId)
+        reference.get().addOnCompleteListener(OnCompleteListener {
+            if (it.isSuccessful) {
+                remindersList.addAll(it.result.toObjects(Reminder::class.java))
+                remindersMLD.value = remindersList
+            }
+        })
+    }
+
+    fun deleteReminder(reminderId: String) {
+        val reference = db.collection("Reminders").document(reminderId)
+        reference.delete()
+    }
+
+    fun createGroup(groupName: String, membersList: ArrayList<String>) {
+        val reference = db.collection("Groups")
+        val id = reference.document().id
+        val map = hashMapOf("Name" to groupName, "GroupID" to id, "Members" to membersList)
+        reference.document(id).set(map).addOnSuccessListener {
+            clearFragmentMLD.value = true
+        }
+    }
+
+    fun getGroups() {
+        val reference = db.collection("Groups")
+        reference.get().addOnCompleteListener(OnCompleteListener {
+            if (it.isSuccessful) {
+                val groupsList = ArrayList(it.result.toObjects(Group::class.java))
+                groupsMLD.value = groupsList
+            }
+        })
+    }
+
+    fun deleteGroup(groupId: String) {
+        val reference = db.collection("Groups").document(groupId)
+        reference.delete()
     }
 
     private fun uploadImage(

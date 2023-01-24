@@ -1,23 +1,18 @@
 package com.example.alasorto.adapters
 
-import android.annotation.SuppressLint
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.alasorto.R
 import com.example.alasorto.dataClass.Users
 
-class AttendedUsersAdapter(
-    usersList: ArrayList<Users>
-) : RecyclerView.Adapter<AttendedUsersAdapter.ViewHolder>() {
-
-    var filteredUsersList: ArrayList<Users> = usersList
+class GroupOfUsersAdapter(
+    private val usersList: ArrayList<Users>
+) : RecyclerView.Adapter<GroupOfUsersAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -26,32 +21,21 @@ class AttendedUsersAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val user = filteredUsersList[position]
+        val user = usersList[position]
         holder.nameTV.text = user.Name
         Glide.with(holder.userIV).load(user.ImageLink).into(holder.userIV)
+        /* val formatter = DecimalFormat("#.##")
+         val percent = formatter.format(user.AttendedPercent)
+         Log.d(TAG, "onBindViewHolder: ${user.AttendedPercent}")
+         holder.percentTV.text = percent.toString()*/
     }
 
     override fun getItemCount(): Int {
-        return filteredUsersList.size
-    }
-
-    fun getUser(position: Int): Users {
-        return filteredUsersList[position]
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    fun filterList(filterList: ArrayList<Users>) {
-        filteredUsersList = filterList
-        notifyDataSetChanged()
+        return usersList.size
     }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val nameTV: TextView = itemView.findViewById(R.id.tv_user_name_item)
+        val nameTV: TextView = itemView.findViewById(R.id.tv_user_item_name)
         val userIV: ImageView = itemView.findViewById(R.id.iv_user_item)
-        private val userRL: RelativeLayout = itemView.findViewById(R.id.rl_user_item)
-
-        init {
-            userRL.setBackgroundColor(Color.parseColor("#658354"))
-        }
     }
 }

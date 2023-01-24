@@ -14,13 +14,12 @@ import java.text.SimpleDateFormat
 class AttHistoryAdapter(
     private val attList: ArrayList<Attendance>,
     private val onClickListener: OnClickListener,
-    private val fragment: AttendanceHistoryFragment
 ) : RecyclerView.Adapter<AttHistoryAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_attendance, parent, false)
-        return ViewHolder(view, onClickListener, fragment)
+        return ViewHolder(view, onClickListener)
     }
 
     @SuppressLint("SimpleDateFormat")
@@ -38,12 +37,10 @@ class AttHistoryAdapter(
     class ViewHolder(
         itemView: View,
         listener: OnClickListener,
-        mFragment: AttendanceHistoryFragment
     ) : RecyclerView.ViewHolder(itemView),
         View.OnClickListener {
         val attDate: Button = itemView.findViewById(R.id.btn_att_name)
         private val mListener = listener
-        private val fragment = mFragment
 
         init {
             attDate.setOnClickListener(this)
