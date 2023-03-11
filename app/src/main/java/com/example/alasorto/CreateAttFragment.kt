@@ -18,6 +18,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.alasorto.adapters.AttAllUsersAdapter
 import com.example.alasorto.dataClass.Users
+import com.example.alasorto.utils.InternetCheck
+import com.example.alasorto.utils.LinearSpacingItemDecorator
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 
@@ -76,7 +78,9 @@ class CreateAttFragment : Fragment(), AttAllUsersAdapter.OnClickListener {
         window = dialog.window!!
         window.setBackgroundDrawableResource(android.R.color.transparent)
 
+        //Set RV layout and spacing
         usersRV.layoutManager = LinearLayoutManager(context)
+        usersRV.addItemDecoration(LinearSpacingItemDecorator(30))
 
         //Initialize VM
         viewModel = ViewModelProvider(this)[AppViewModel::class.java]

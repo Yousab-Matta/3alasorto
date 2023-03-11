@@ -1,4 +1,4 @@
-package com.example.alasorto
+package com.example.alasorto.utils
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -12,10 +12,9 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import kotlin.math.abs
 
-
 class SwipeController(
     private val mContext: Context,
-    val swipeControllerActions: ISwipeControllerActions
+    private val swipeControllerActions: ISwipeControllerActions
 ) :
     ItemTouchHelper.Callback() {
 

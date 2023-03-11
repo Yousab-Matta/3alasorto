@@ -14,7 +14,9 @@ import com.example.alasorto.dataClass.Users
 import com.example.alasorto.notification.Data
 import com.example.alasorto.notification.NotificationModel
 import com.example.alasorto.notification.NotificationViewModel
+import com.example.alasorto.utils.InternetCheck
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -28,6 +30,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var connectionTV: TextView
     private lateinit var currentUser: Users
     private var hasConnection = false
+
+    private var isCurrentUserLoaded = false //Checks if current user is loaded from database
+    private var areAllUsersLoaded = false //Checks if all users data is loaded from database
+
+    //Checks if fragment is loaded so app doesn't open fragment again
+    private var isFragmentLoaded = false
 
     private val allUsersList = ArrayList<Users>()
 
@@ -84,15 +92,11 @@ class MainActivity : AppCompatActivity() {
             if (savedInstanceState == null) {
                 if (it != null) {
                     currentUser = it //Sets value to current user var
-                    //Go tp Home Fragment
-                    val fragment = HomeFragment()
-                    val manager = supportFragmentManager
-                    val transaction = manager.beginTransaction()
-                    val bundle = Bundle()
-                    bundle.putParcelable("CURRENT_USER", it)
-                    fragment.arguments = bundle
-                    transaction.add(R.id.main_frame, fragment)
-                    transaction.commit()
+                    isCurrentUserLoaded = true
+                    if (isCurrentUserLoaded && areAllUsersLoaded && !isFragmentLoaded) {
+                        goToHomeFragment()
+                        isFragmentLoaded = true
+                    }
                     viewModel.currentUserMLD.removeObservers(this)
                 } else {
                     //If no Data for User go to CreateData fragment
@@ -109,10 +113,24 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+        //Check changes in posts
+        Firebase.firestore.collection("Users").addSnapshotListener()
+        { _, _ ->
+            if (hasConnection) {
+                viewModel.getAllUsers()
+                viewModel.getCurrentUser(phoneNum!!)
+            }
+        }
+
         viewModel.usersMLD.observe(this, Observer {
             if (it != null) {
                 allUsersList.clear()
                 allUsersList.addAll(it)
+                areAllUsersLoaded = true
+                if (isCurrentUserLoaded && areAllUsersLoaded && !isFragmentLoaded) {
+                    goToHomeFragment()
+                    isFragmentLoaded = true
+                }
             }
         })
 
@@ -134,5 +152,17 @@ class MainActivity : AppCompatActivity() {
 
     fun getAllUsers(): ArrayList<Users> {
         return allUsersList
+    }
+
+    private fun goToHomeFragment() {
+        //Go tp Home Fragment
+        val fragment = HomeFragment()
+        val manager = supportFragmentManager
+        val transaction = manager.beginTransaction()
+        val bundle = Bundle()
+        bundle.putParcelable("CURRENT_USER", currentUser)
+        fragment.arguments = bundle
+        transaction.add(R.id.main_frame, fragment)
+        transaction.commit()
     }
 }

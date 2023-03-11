@@ -1,4 +1,4 @@
-package com.example.alasorto
+package com.example.alasorto.utils
 
 import android.app.Application
 import android.content.Context
@@ -11,9 +11,10 @@ import androidx.lifecycle.LiveData
 
 class InternetCheck(private val connectivityManager: ConnectivityManager) : LiveData<Boolean>() {
     constructor(application: Application) : this(application.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)
+
     private val networkCallback = @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
 
-    object : ConnectivityManager.NetworkCallback(){
+    object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             super.onAvailable(network)
             postValue(true)

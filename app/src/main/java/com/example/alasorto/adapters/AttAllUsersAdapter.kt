@@ -21,7 +21,7 @@ class AttAllUsersAdapter(
     private val onClickListener: OnClickListener,
     private val context: Context
 ) : RecyclerView.Adapter<AttAllUsersAdapter.ViewHolder>() {
-    private var filteredUsersList: ArrayList<Users> = usersList
+    private var filteredUsersList = ArrayList<Users>(usersList)
     private lateinit var mViewHolder: ViewHolder
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -37,9 +37,11 @@ class AttAllUsersAdapter(
         val user = filteredUsersList[position]
 
         if (attendedUsersList.contains(user)) {
-            holder.userRL.setBackgroundColor(ContextCompat.getColor(context, R.color.green))
+            holder.userDataRl.backgroundTintList =
+                ContextCompat.getColorStateList(context, R.color.green)
         } else {
-            holder.userRL.setBackgroundColor(ContextCompat.getColor(context, R.color.grey5))
+            holder.userDataRl.backgroundTintList =
+                ContextCompat.getColorStateList(context, R.color.primary_color)
         }
 
         holder.nameTV.text = user.Name
@@ -70,9 +72,9 @@ class AttAllUsersAdapter(
         private val onClickListener: OnClickListener
     ) :
         RecyclerView.ViewHolder(itemView), View.OnClickListener {
+        val userDataRl: RelativeLayout = itemView.findViewById(R.id.rl_user_item)
         val nameTV: TextView = itemView.findViewById(R.id.tv_user_item_name)
         val userIV: ImageView = itemView.findViewById(R.id.iv_user_item)
-        val userRL: RelativeLayout = itemView.findViewById(R.id.rl_user_item)
 
         init {
             itemView.setOnClickListener(this)

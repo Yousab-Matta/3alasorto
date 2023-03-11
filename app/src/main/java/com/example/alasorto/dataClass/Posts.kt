@@ -5,22 +5,23 @@ import android.os.Parcelable
 import java.util.*
 
 data class Posts(
-    val Title: String? = null,
-    val Description: String? = null,
-    val ImageLink: String? = null,
-    val ID: String? = null,
-    val OwnerID: String? = null,
-    val PostDate: Date? = null,
-    val Day: Int? = null,
-    val Month: Int? = null,
-    val Year: Int? = null,
+    val title: String? = null,
+    val description: String? = null,
+    val imageLink: String? = null,
+    val id: String? = null,
+    val ownerID: String = "",
+    val postDate: Date? = null,
+    val day: Int? = null,
+    val month: Int? = null,
+    val year: Int? = null
 ) : Parcelable {
+
     constructor(parcel: Parcel) : this(
         parcel.readString(),
         parcel.readString(),
         parcel.readString(),
         parcel.readString(),
-        parcel.readString(),
+        parcel.readString() ?: "",
         parcel.readValue(Date::class.java.classLoader) as? Date,
         parcel.readValue(Int::class.java.classLoader) as? Int,
         parcel.readValue(Int::class.java.classLoader) as? Int,
@@ -32,20 +33,20 @@ data class Posts(
     }
 
     override fun writeToParcel(p0: Parcel, p1: Int) {
-        p0.writeString(Title)
-        p0.writeString(Description)
-        p0.writeString(ImageLink)
-        p0.writeString(ID)
-        p0.writeString(OwnerID)
-        p0.writeValue(PostDate)
-        if (Day != null) {
-            p0.writeInt(Day)
+        p0.writeString(title)
+        p0.writeString(description)
+        p0.writeString(imageLink)
+        p0.writeString(id)
+        p0.writeString(ownerID)
+        p0.writeValue(postDate)
+        if (day != null) {
+            p0.writeInt(day)
         }
-        if (Month != null) {
-            p0.writeInt(Month)
+        if (month != null) {
+            p0.writeInt(month)
         }
-        if (Year != null) {
-            p0.writeInt(Year)
+        if (year != null) {
+            p0.writeInt(year)
         }
     }
 

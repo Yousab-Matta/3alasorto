@@ -22,16 +22,20 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
 import com.example.alasorto.dataClass.Users
+import com.example.alasorto.utils.TextWatcherCreateUser
 import com.yalantis.ucrop.UCrop
 import com.yalantis.ucrop.UCropActivity.NONE
 import com.yalantis.ucrop.UCropActivity.SCALE
 import java.io.File
 
-private const val RESULT_OK = -1
-private const val RESULT_CANCEL = 0
-
 @Suppress("DEPRECATION")
 class CreateUserDataFragment : Fragment(), AdapterView.OnItemSelectedListener {
+
+    companion object {
+        private const val RESULT_OK = -1
+        private const val RESULT_CANCEL = 0
+    }
+
     //Widgets
     private lateinit var nameET: EditText
     private lateinit var phoneET: EditText
@@ -109,6 +113,7 @@ class CreateUserDataFragment : Fragment(), AdapterView.OnItemSelectedListener {
                 arrayAdapter.setDropDownViewResource(R.layout.spinner_layout)
                 statusSpinner.adapter = arrayAdapter
             }
+
         statusSpinner.onItemSelectedListener = this
         //Edit Text Text watchers
         nameET.addTextChangedListener(TextWatcherCreateUser(nameET, requireContext()))
@@ -144,7 +149,7 @@ class CreateUserDataFragment : Fragment(), AdapterView.OnItemSelectedListener {
             birthMonthET.setText(user!!.BirthMonth.toString())
             birthYearET.setText(user!!.BirthYear.toString())
             statusYearET.setText(user!!.StatusYear.toString())
-            titleTV.text = "Edit existing user"
+            titleTV.setText(R.string.edit_user)
             if (user!!.ImageLink!!.isNotEmpty()) {
                 Glide.with(userIV).load(user!!.ImageLink).into(userIV)
             }

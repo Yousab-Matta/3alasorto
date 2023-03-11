@@ -9,7 +9,7 @@
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/grey4">
+        android:background="@color/primary_color">
 
         <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/iv_post_owner"
@@ -19,7 +19,7 @@
             android:layout_marginStart="10dp"
             android:layout_marginTop="10dp"
             android:src="@drawable/image_logo"
-            app:civ_border_color="@color/grey3"
+            app:civ_border_color="@color/primary_color"
             app:civ_border_width="1dp" />
 
         <TextView
@@ -32,10 +32,10 @@
             android:layout_marginEnd="10dp"
             android:layout_toStartOf="@+id/iv_post_menu"
             android:layout_toEndOf="@+id/iv_post_owner"
-            android:textColor="@color/white"
+            android:textColor="@color/text_color"
             android:textSize="20sp"
             android:textStyle="bold" />
-
+z
         <com.google.android.material.imageview.ShapeableImageView
             android:id="@+id/iv_post_image"
             android:layout_width="match_parent"
@@ -55,8 +55,8 @@
             android:layout_marginTop="10dp"
             android:layout_marginEnd="10dp"
             android:src="@drawable/ic_menu"
-            app:tint="@color/white"
-            tools:ignore="ContentDescription" />
+            app:tint="@color/text_color"
+            tools:ignore="ContentDescription,ImageContrastCheck" />
 
         <TextView
             android:id="@+id/tv_post_title"
@@ -67,7 +67,7 @@
             android:layout_alignParentEnd="true"
             android:paddingHorizontal="10dp"
             android:paddingTop="10dp"
-            android:textColor="@color/white"
+            android:textColor="@color/text_color"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -81,7 +81,7 @@
             android:layout_toStartOf="@+id/iv_post_menu"
             android:layout_toEndOf="@+id/iv_post_owner"
             android:paddingVertical="5dp"
-            android:textColor="@color/grey9"
+            android:textColor="@color/secondary_color"
             android:textSize="13sp"
             android:textStyle="bold" />
 
@@ -95,7 +95,7 @@
             android:layout_marginTop="10dp"
             android:paddingHorizontal="10dp"
             android:paddingBottom="10dp"
-            android:textColor="@color/white"
+            android:textColor="@color/text_color"
             android:textSize="15sp" />
 
         <View
@@ -113,13 +113,13 @@
             android:weightSum="2">
 
             <TextView
-                android:id="@+id/tv_event_react"
+                android:id="@+id/tv_post_react"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="@string/react"
-                android:textColor="@color/white"
+                android:textColor="@color/text_color"
                 android:textSize="25sp"
                 android:textStyle="bold" />
 
@@ -130,7 +130,7 @@
                 android:layout_weight="1"
                 android:gravity="center"
                 android:text="@string/comment"
-                android:textColor="@color/white"
+                android:textColor="@color/text_color"
                 android:textSize="25sp"
                 android:textStyle="bold" />
         </LinearLayout>

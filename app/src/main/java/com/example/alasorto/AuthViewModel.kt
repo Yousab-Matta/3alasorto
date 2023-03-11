@@ -10,9 +10,12 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import java.util.concurrent.TimeUnit
 
-private const val TAG = "AUTH_VIEW_MODEL"
-
 class AuthViewModel : ViewModel() {
+
+    companion object {
+        private const val TAG = "AUTH_VIEW_MODEL"
+    }
+
     var resendTokenMLD = MutableLiveData<PhoneAuthProvider.ForceResendingToken>()
     var authIdMLD = MutableLiveData<String>()
     var credentialMLD = MutableLiveData<PhoneAuthCredential>()

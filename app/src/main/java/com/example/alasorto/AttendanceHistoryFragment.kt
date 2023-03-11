@@ -22,6 +22,8 @@ import com.example.alasorto.adapters.AttHistoryAdapter
 import com.example.alasorto.adapters.GroupOfUsersAdapter
 import com.example.alasorto.dataClass.Attendance
 import com.example.alasorto.dataClass.Users
+import com.example.alasorto.utils.InternetCheck
+import com.example.alasorto.utils.LinearSpacingItemDecorator
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import java.text.SimpleDateFormat
@@ -64,6 +66,10 @@ class AttendanceHistoryFragment : Fragment(), AttHistoryAdapter.OnClickListener 
         //Set Linear Layout to RVs'
         attHistoryRV.layoutManager = LinearLayoutManager(context)
         attUsersRV.layoutManager = LinearLayoutManager(context)
+
+        //Set RVs' spacings
+        attHistoryRV.addItemDecoration(LinearSpacingItemDecorator(30))
+        attUsersRV.addItemDecoration(LinearSpacingItemDecorator(30))
 
         //Set History Users RV adapter
         groupOfUsersAdapter = GroupOfUsersAdapter(usersList)

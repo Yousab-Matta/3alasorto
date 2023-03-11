@@ -1,10 +1,11 @@
-package com.example.alasorto
+package com.example.alasorto.utils
 
 import android.content.Context
 import android.text.Editable
 import android.text.TextWatcher
 import android.widget.EditText
 import androidx.core.content.ContextCompat
+import com.example.alasorto.R
 
 class TextWatcherCreateUser(
     private val view: EditText,

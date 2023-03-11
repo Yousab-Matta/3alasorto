@@ -12,43 +12,71 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toBottomOf="@+id/rl_header">
 
-        <TextView
-            android:id="@+id/tv_create_user_title"
+        <RelativeLayout
+            android:id="@+id/rl_header"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_alignParentStart="true"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentEnd="true"
-            android:layout_marginStart="0dp"
-            android:layout_marginEnd="0dp"
-            android:text="@string/add_new_user"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="15dp"
-            android:textColor="@color/white"
-            android:textSize="25sp"
-            android:textStyle="bold" />
+            android:layout_height="50dp"
+            android:background="@drawable/round_bottom_corners"
+            android:backgroundTint="@color/primary_color"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/tv_create_user_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:layout_toStartOf="@+id/btn_save_user"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="15dp"
+                android:text="@string/add_new_user"
+                android:textColor="@color/text_color"
+                android:textSize="25sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/btn_save_user"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:layout_marginEnd="10dp"
+                android:contentDescription="@string/todo"
+                android:padding="5dp"
+                android:scaleType="fitXY"
+                android:src="@drawable/ic_check"
+                app:tint="@color/text_color"
+                tools:ignore="TouchTargetSizeCheck,TouchTargetSizeCheck" />
+
+        </RelativeLayout>
 
         <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/iv_create_user"
             android:layout_width="150dp"
             android:layout_height="150dp"
-            android:layout_below="@+id/tv_create_user_title"
+            android:layout_below="@+id/rl_header"
             android:layout_centerHorizontal="true"
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
             android:background="@drawable/ic_person"
-            android:backgroundTint="@color/grey5"
-            app:civ_border_color="@color/white"
+            android:backgroundTint="@color/primary_color"
+            app:civ_border_color="@color/text_color"
             app:civ_border_width="2dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            tools:ignore="ImageContrastCheck" />
 
         <EditText
             android:id="@+id/et_user_name"
+            style="@style/EditTextCustomStyle"
             android:layout_width="300dp"
             android:layout_height="40dp"
             android:layout_below="@+id/iv_create_user"
@@ -56,19 +84,16 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
             android:autofillHints=""
-            android:background="@drawable/custom_input"
             android:hint="@string/user_name"
             android:inputType="text"
             android:nextFocusDown="@id/et_phone_num"
-            android:paddingHorizontal="15dp"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey7"
-            android:textSize="20sp"
             app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent" />
+            app:layout_constraintTop_toBottomOf="parent"
+            tools:ignore="TouchTargetSizeCheck,TouchTargetSizeCheck" />
 
         <EditText
             android:id="@+id/et_phone_num"
+            style="@style/EditTextCustomStyle"
             android:layout_width="300dp"
             android:layout_height="40dp"
             android:layout_below="@+id/et_user_name"
@@ -76,20 +101,17 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
             android:autofillHints=""
-            android:background="@drawable/custom_input"
             android:hint="@string/phone_number"
             android:inputType="phone"
             android:maxLength="11"
             android:nextFocusDown="@id/et_address"
-            android:paddingHorizontal="15dp"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey7"
-            android:textSize="20sp"
             app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent" />
+            app:layout_constraintTop_toBottomOf="parent"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <EditText
             android:id="@+id/et_address"
+            style="@style/EditTextCustomStyle"
             android:layout_width="300dp"
             android:layout_height="40dp"
             android:layout_below="@+id/et_phone_num"
@@ -97,19 +119,16 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
             android:autofillHints=""
-            android:background="@drawable/custom_input"
             android:hint="@string/address"
             android:inputType="text"
             android:nextFocusDown="@id/et_location"
-            android:paddingHorizontal="15dp"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey7"
-            android:textSize="20sp"
             app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent" />
+            app:layout_constraintTop_toBottomOf="parent"
+            tools:ignore="TouchTargetSizeCheck,TouchTargetSizeCheck" />
 
         <EditText
             android:id="@+id/et_location"
+            style="@style/EditTextCustomStyle"
             android:layout_width="300dp"
             android:layout_height="40dp"
             android:layout_below="@+id/et_address"
@@ -117,18 +136,15 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
             android:autofillHints=""
-            android:background="@drawable/custom_input"
             android:hint="@string/location"
             android:inputType="text"
             android:nextFocusDown="@id/et_confession_priest"
-            android:paddingHorizontal="15dp"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey7"
-            android:textSize="20sp"
-            app:layout_constraintTop_toBottomOf="parent" />
+            app:layout_constraintTop_toBottomOf="parent"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <EditText
             android:id="@+id/et_confession_priest"
+            style="@style/EditTextCustomStyle"
             android:layout_width="300dp"
             android:layout_height="40dp"
             android:layout_below="@+id/et_location"
@@ -136,19 +152,16 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
             android:autofillHints=""
-            android:background="@drawable/custom_input"
             android:hint="@string/confession_priest"
             android:inputType="text"
             android:nextFocusDown="@id/et_points"
-            android:paddingHorizontal="15dp"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey7"
-            android:textSize="20sp"
             app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent" />
+            app:layout_constraintTop_toBottomOf="parent"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <EditText
             android:id="@+id/et_points"
+            style="@style/EditTextCustomStyle"
             android:layout_width="300dp"
             android:layout_height="40dp"
             android:layout_below="@+id/et_confession_priest"
@@ -156,19 +169,16 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
             android:autofillHints=""
-            android:background="@drawable/custom_input"
             android:hint="@string/points"
             android:inputType="number"
             android:nextFocusDown="@id/et_college"
-            android:paddingHorizontal="15dp"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey7"
-            android:textSize="20sp"
             app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent" />
+            app:layout_constraintTop_toBottomOf="parent"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <EditText
             android:id="@+id/et_college"
+            style="@style/EditTextCustomStyle"
             android:layout_width="300dp"
             android:layout_height="40dp"
             android:layout_below="@+id/et_points"
@@ -176,19 +186,16 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
             android:autofillHints=""
-            android:background="@drawable/custom_input"
             android:hint="@string/college"
             android:inputType="text"
             android:nextFocusDown="@id/et_uni"
-            android:paddingHorizontal="15dp"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey7"
-            android:textSize="20sp"
             app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent" />
+            app:layout_constraintTop_toBottomOf="parent"
+            tools:ignore="TouchTargetSizeCheck" />
 
         <EditText
             android:id="@+id/et_uni"
+            style="@style/EditTextCustomStyle"
             android:layout_width="300dp"
             android:layout_height="40dp"
             android:layout_below="@+id/et_college"
@@ -196,14 +203,9 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
             android:autofillHints=""
-            android:background="@drawable/custom_input"
             android:hint="@string/university"
             android:inputType="text"
             android:nextFocusDown="@id/et_birth_day"
-            android:paddingHorizontal="15dp"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey7"
-            android:textSize="20sp"
             app:drawableTint="@color/design_default_color_error"
             app:layout_constraintTop_toBottomOf="parent" />
 
@@ -215,7 +217,7 @@
             android:layout_alignStart="@+id/et_confession_priest"
             android:layout_marginTop="15dp"
             android:text="@string/birth_date"
-            android:textColor="@color/white"
+            android:textColor="@color/text_color"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -229,54 +231,49 @@
 
             <EditText
                 android:id="@+id/et_birth_day"
+                style="@style/EditTextCustomStyle"
                 android:layout_width="95dp"
                 android:layout_height="40dp"
+                android:layout_marginStart="0dp"
                 android:layout_marginEnd="5dp"
                 android:autofillHints=""
-                android:background="@drawable/custom_input"
                 android:gravity="center"
                 android:hint="@string/day"
                 android:inputType="number"
                 android:maxLength="2"
                 android:nextFocusDown="@id/et_birth_month"
                 android:paddingHorizontal="5dp"
-                android:textColor="@color/white"
-                android:textColorHint="@color/grey7"
-                android:textSize="20sp"
                 app:drawableTint="@color/design_default_color_error" />
 
             <EditText
                 android:id="@+id/et_birth_month"
+                style="@style/EditTextCustomStyle"
                 android:layout_width="95dp"
                 android:layout_height="40dp"
+                android:layout_marginStart="0dp"
                 android:layout_marginEnd="5dp"
                 android:autofillHints=""
-                android:background="@drawable/custom_input"
                 android:gravity="center"
                 android:hint="@string/month"
                 android:inputType="number"
                 android:maxLength="2"
                 android:nextFocusDown="@id/et_birth_year"
                 android:paddingHorizontal="5dp"
-                android:textColor="@color/white"
-                android:textColorHint="@color/grey7"
-                android:textSize="20sp"
                 app:drawableTint="@color/design_default_color_error" />
 
             <EditText
                 android:id="@+id/et_birth_year"
+                style="@style/EditTextCustomStyle"
                 android:layout_width="100dp"
                 android:layout_height="40dp"
+                android:layout_marginStart="0dp"
+                android:layout_marginEnd="0dp"
                 android:autofillHints=""
-                android:background="@drawable/custom_input"
                 android:gravity="center"
                 android:hint="@string/year"
                 android:inputType="number"
                 android:maxLength="4"
                 android:paddingHorizontal="5dp"
-                android:textColor="@color/white"
-                android:textColorHint="@color/grey7"
-                android:textSize="20sp"
                 app:drawableTint="@color/design_default_color_error" />
         </LinearLayout>
 
@@ -288,7 +285,7 @@
             android:layout_alignStart="@+id/ll_create_user"
             android:layout_marginTop="15dp"
             android:text="@string/status"
-            android:textColor="@color/white"
+            android:textColor="@color/text_color"
             android:textSize="20sp"
             android:textStyle="bold" />
 
@@ -301,45 +298,27 @@
             android:layout_marginTop="15dp"
             android:background="@drawable/custom_input"
             android:textAlignment="center"
-            android:textColor="@color/white"
+            android:textColor="@color/text_color"
             android:textSize="20sp"
             android:textStyle="bold" />
 
         <EditText
             android:id="@+id/et_status_year"
+            style="@style/EditTextCustomStyle"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_alignTop="@+id/spinner_status"
             android:layout_alignEnd="@+id/ll_create_user"
-            android:layout_marginStart="15dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="0dp"
             android:layout_toEndOf="@+id/spinner_status"
             android:autofillHints=""
-            android:background="@drawable/custom_input"
             android:gravity="center"
             android:hint="@string/year"
             android:inputType="number"
             android:maxLength="4"
             android:paddingHorizontal="5dp"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey7"
-            android:textSize="20sp"
             app:drawableTint="@color/design_default_color_error" />
-
-        <ImageButton
-            android:id="@+id/btn_save_user"
-            style="@style/Widget.AppCompat.Button.Borderless"
-            android:layout_width="35dp"
-            android:layout_height="35dp"
-            android:layout_below="@+id/tv_create_user_title"
-            android:layout_alignParentEnd="true"
-            android:layout_marginTop="20dp"
-            android:layout_marginEnd="20dp"
-            android:contentDescription="@string/todo"
-            android:padding="0dp"
-            android:scaleType="fitXY"
-            android:src="@drawable/ic_check"
-            app:tint="@color/white"
-            tools:ignore="TouchTargetSizeCheck,TouchTargetSizeCheck" />
 
     </RelativeLayout>
 </ScrollView>

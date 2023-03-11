@@ -9,17 +9,19 @@ import com.example.alasorto.R
 import com.example.alasorto.dataClass.GroupChat
 import com.example.alasorto.dataClass.Users
 
-private const val MSG_ITEM_LEFT = 0
-private const val MSG_ITEM_RIGHT = 1
-
 class GroupChatAdapter(
     private val groupChatList: ArrayList<GroupChat>,
     private val chatOwnersList: ArrayList<Users>,
     private val myId: String
 ) : RecyclerView.Adapter<GroupChatAdapter.ViewHolder>() {
 
+    companion object{
+        private const val MSG_ITEM_LEFT = 0
+        private const val MSG_ITEM_RIGHT = 1
+    }
+
     override fun getItemViewType(position: Int): Int {
-        return if (groupChatList[position].OwnerID == myId) {
+        return if (groupChatList[position].ownerID == myId) {
             MSG_ITEM_RIGHT
         } else {
             MSG_ITEM_LEFT
@@ -42,9 +44,9 @@ class GroupChatAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val chatItem = groupChatList[position]
-        holder.chatMessage.text = chatItem.Message
+        holder.chatMessage.text = chatItem.message
         for (owner in chatOwnersList) {
-            if (owner.Phone.toString() == chatItem.OwnerID) {
+            if (owner.Phone.toString() == chatItem.ownerID) {
                 holder.chatOwner.text = owner.Name
             }
         }

@@ -3,9 +3,9 @@ package com.example.alasorto.dataClass
 import java.util.*
 
 data class Comments(
-    val PostID: String? = null,
-    val Comment: String? = null,
-    val OwnerID: String? = null,
-    val CommentID: String? = null,
-    val Date: Date? = null
+    val postID: String? = null,
+    val comment: String? = null,
+    val ownerID: String? = null,
+    val commentID: String? = null,
+    val date: Date? = null
 )

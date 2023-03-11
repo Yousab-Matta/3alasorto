@@ -14,28 +14,62 @@
         android:layout_marginHorizontal="10dp"
         android:layout_marginTop="10dp"
         android:background="@drawable/round_corners"
-        android:backgroundTint="@color/grey4"
+        android:backgroundTint="@color/primary_color"
         android:drawableEnd="@drawable/ic_person_search"
         android:drawablePadding="5dp"
+        android:elevation="50dp"
         android:hint="@string/search_for_user"
         android:maxLines="1"
         android:paddingHorizontal="15dp"
-        android:textColor="@color/grey9"
-        android:textColorHint="@color/grey9"
-        app:drawableTint="@color/grey9"
+        android:textColor="@color/text_color"
+        android:textColorHint="@color/text_hint"
+        app:drawableTint="@color/text_hint"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <RelativeLayout
+        android:id="@+id/rl_filter_user"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="10dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/et_user_search">
+
+        <ImageView
+            android:id="@+id/iv_filter_users"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_filter"
+            app:tint="@color/text_hint" />
+
+        <TextView
+            android:id="@+id/tv_filter_users"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="10dp"
+            android:layout_toStartOf="@+id/iv_filter_users"
+            android:text="@string/sort_by"
+            android:textColor="@color/text_hint"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+    </RelativeLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_all_users"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="10dp"
+        android:paddingHorizontal="5dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/et_user_search" />
+        app:layout_constraintTop_toBottomOf="@+id/rl_filter_user" />
 
     <androidx.appcompat.widget.AppCompatImageButton
         android:id="@+id/btn_add_user"
@@ -46,12 +80,12 @@
         android:layout_marginEnd="20dp"
         android:layout_marginBottom="20dp"
         android:adjustViewBounds="true"
-        android:background="@drawable/round_btn"
+        android:background="@drawable/circle"
         android:padding="10dp"
         android:scaleType="fitXY"
         android:src="@drawable/ic_add_person"
-        android:tint="@color/black"
-        app:backgroundTint="@color/grey5"
+        android:tint="@color/drawable_tint"
+        app:backgroundTint="@color/primary_color"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:ignore="SpeakableTextPresentCheck" />
@@ -65,13 +99,13 @@
         android:layout_marginEnd="20dp"
         android:layout_marginBottom="20dp"
         android:adjustViewBounds="true"
-        android:background="@drawable/round_btn"
+        android:background="@drawable/circle"
         android:padding="10dp"
         android:scaleType="fitXY"
         android:src="@drawable/ic_add"
-        android:tint="@color/black"
+        android:tint="@color/drawable_tint"
         android:visibility="gone"
-        app:backgroundTint="@color/grey5"
+        app:backgroundTint="@color/primary_color"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:ignore="SpeakableTextPresentCheck" />

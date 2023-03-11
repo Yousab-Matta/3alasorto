@@ -28,8 +28,8 @@
             android:inputType="number"
             android:maxLength="1"
             android:nextFocusRight="@id/et_otp_2"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey5"
+            android:textColor="@color/text_color"
+            android:textColorHint="@color/text_hint"
             android:textSize="40sp" />
 
         <EditText
@@ -43,8 +43,8 @@
             android:inputType="number"
             android:maxLength="1"
             android:nextFocusRight="@id/et_otp_3"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey5"
+            android:textColor="@color/text_color"
+            android:textColorHint="@color/text_hint"
             android:textSize="40sp" />
 
         <EditText
@@ -58,8 +58,8 @@
             android:inputType="number"
             android:maxLength="1"
             android:nextFocusRight="@id/et_otp_4"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey5"
+            android:textColor="@color/text_color"
+            android:textColorHint="@color/text_hint"
             android:textSize="40sp" />
 
         <EditText
@@ -73,8 +73,8 @@
             android:inputType="number"
             android:maxLength="1"
             android:nextFocusRight="@id/et_otp_5"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey5"
+            android:textColor="@color/text_color"
+            android:textColorHint="@color/text_hint"
             android:textSize="40sp" />
 
         <EditText
@@ -88,8 +88,8 @@
             android:inputType="number"
             android:maxLength="1"
             android:nextFocusRight="@id/et_otp_6"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey5"
+            android:textColor="@color/text_color"
+            android:textColorHint="@color/text_hint"
             android:textSize="40sp" />
 
         <EditText
@@ -101,8 +101,8 @@
             android:hint="@string/zero"
             android:inputType="number"
             android:maxLength="1"
-            android:textColor="@color/white"
-            android:textColorHint="@color/grey5"
+            android:textColor="@color/text_color"
+            android:textColorHint="@color/text_hint"
             android:textSize="40sp" />
 
     </LinearLayout>
@@ -115,7 +115,7 @@
         android:backgroundTint="@color/btn_color"
         android:text="@string/verify"
         android:textAllCaps="false"
-        android:textColor="@color/white"
+        android:textColor="@color/text_color"
         android:textSize="20sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -128,7 +128,7 @@
         android:id="@+id/tv_verification_timer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="@color/white"
+        android:textColor="@color/text_color"
         android:textSize="25sp"
         android:textStyle="bold"
         android:visibility="invisible"
@@ -145,7 +145,7 @@
         android:layout_height="wrap_content"
         android:layoutDirection="rtl"
         android:text="@string/keep_logged_in"
-        android:textColor="@color/white"
+        android:textColor="@color/text_color"
         android:textSize="20sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"

@@ -3,10 +3,10 @@ package com.example.alasorto.dataClass
 import java.util.*
 
 data class GroupChat(
-    val Message: String? = null,
-    val OwnerID: String? = null,
-    val MessageID: String? = null,
-    val ImageLink: String? = null,
-    val MessageType: String? = null,
-    val Date: Date? = null,
+    val message: String? = null,
+    val ownerID: String? = null,
+    val messageID: String? = null,
+    val imageLink: String? = null,
+    val messageType: String? = null,
+    val date: Date? = null,
 )

@@ -1,8 +1,9 @@
-package com.example.alasorto
+package com.example.alasorto.utils
 
 import android.text.Editable
 import android.text.TextWatcher
 import android.widget.EditText
+import com.example.alasorto.AuthActivity
 
 class TextWatcherVerify(
     private val prevET: EditText?,

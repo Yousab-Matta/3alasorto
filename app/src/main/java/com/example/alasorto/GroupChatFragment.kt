@@ -16,6 +16,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.alasorto.adapters.GroupChatAdapter
 import com.example.alasorto.dataClass.GroupChat
 import com.example.alasorto.dataClass.Users
+import com.example.alasorto.utils.ISwipeControllerActions
+import com.example.alasorto.utils.InternetCheck
+import com.example.alasorto.utils.SwipeController
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
@@ -73,7 +76,7 @@ class GroupChatFragment : Fragment() {
         viewModel.groupChatMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
                 for (chat in it) {
-                    viewModel.getUserById(chat.OwnerID.toString())
+                    viewModel.getUserById(chat.ownerID.toString())
                     if (!groupChatList.contains(chat)) {
                         groupChatList.add(chat)
                         adapter.notifyItemInserted(groupChatList.size - 1)
@@ -102,7 +105,7 @@ class GroupChatFragment : Fragment() {
 
         val controller = SwipeController(requireContext(), object : ISwipeControllerActions {
             override fun onSwipePerformed(position: Int) {
-                messageET.setText(adapter.getItemById(position).Message)
+                messageET.setText(adapter.getItemById(position).message)
             }
         })
 

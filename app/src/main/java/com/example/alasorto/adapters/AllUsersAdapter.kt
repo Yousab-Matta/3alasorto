@@ -6,16 +6,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.RelativeLayout
 import android.widget.TextView
-import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.alasorto.R
 import com.example.alasorto.dataClass.Users
-
-private const val ITEM_TYPE_USER_ITEM = 0
-private const val ITEM_TYPE_ADMIN_ITEM = 1
 
 class AllUsersAdapter(
     usersList: ArrayList<Users>,
@@ -25,6 +22,11 @@ class AllUsersAdapter(
     private val access: String,
     private val context: Context,
 ) : RecyclerView.Adapter<AllUsersAdapter.ViewHolder>() {
+
+    companion object {
+        private const val ITEM_TYPE_USER_ITEM = 0
+        private const val ITEM_TYPE_ADMIN_ITEM = 1
+    }
 
     private var filteredUsersList: ArrayList<Users> = usersList
 
@@ -55,13 +57,11 @@ class AllUsersAdapter(
         //context.resources.getColorStateList(R.color.green,context.theme)
 
         if (selectedUsersList.contains(user)) {
-            holder.cardView.setCardBackgroundColor(
-                ContextCompat.getColor(context, R.color.green)
-            )
+            holder.userDataRl.backgroundTintList =
+                ContextCompat.getColorStateList(context, R.color.green)
         } else {
-            holder.cardView.setCardBackgroundColor(
-                ContextCompat.getColor(context, R.color.grey5)
-            )
+            holder.userDataRl.backgroundTintList =
+                ContextCompat.getColorStateList(context, R.color.primary_color)
         }
 
         holder.nameTV.text = user.Name
@@ -85,7 +85,7 @@ class AllUsersAdapter(
         private val adapter: AllUsersAdapter,
     ) :
         RecyclerView.ViewHolder(itemView), View.OnClickListener, View.OnLongClickListener {
-        val cardView: CardView = itemView.findViewById(R.id.cv_user_item)
+        val userDataRl: RelativeLayout = itemView.findViewById(R.id.rl_user_item)
         val nameTV: TextView = itemView.findViewById(R.id.tv_user_item_name)
         val attendanceTV: TextView = itemView.findViewById(R.id.tv_user_percent)
         val pointsTV: TextView = itemView.findViewById(R.id.tv_user_points)

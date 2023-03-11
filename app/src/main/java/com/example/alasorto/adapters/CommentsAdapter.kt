@@ -15,6 +15,7 @@ class CommentsAdapter(
     private val commentsList: ArrayList<Comments>,
     private val commentsOwnersList: ArrayList<Users>,
     private val onCommentClick: OnCommentClick
+
 ) : RecyclerView.Adapter<CommentsAdapter.ViewHolder>() {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -24,9 +25,9 @@ class CommentsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val comment = commentsList[position]
-        holder.commentTV.text = comment.Comment
+        holder.commentTV.text = comment.comment
         for (owner in commentsOwnersList) {
-            if (comment.OwnerID == owner.Phone)
+            if (comment.ownerID == owner.Phone)
                 if (owner.ImageLink!!.isNotEmpty()) {
                     Glide.with(holder.userImageIV).load(owner.ImageLink!!).into(holder.userImageIV)
                     holder.userNameTV.text = owner.Name

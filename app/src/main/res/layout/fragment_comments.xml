@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/black">
+    android:background="@color/fragment_bg">
 
     <TextView
         android:id="@+id/tv_reacts"
@@ -13,7 +13,7 @@
         android:gravity="center_vertical"
         android:paddingHorizontal="10dp"
         android:text="@string/comments"
-        android:textColor="@color/white"
+        android:textColor="@color/text_color"
         android:textSize="20sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.526"
@@ -37,7 +37,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/round_top_corners"
-        android:backgroundTint="@color/grey2"
+        android:backgroundTint="@color/color1"
         android:padding="5dp"
         app:layout_constraintBottom_toBottomOf="@+id/rv_post_comments"
         app:layout_constraintEnd_toEndOf="parent"
@@ -51,7 +51,7 @@
             android:layout_alignParentStart="true"
             android:layout_marginStart="10dp"
             android:text="@string/edit_comment"
-            android:textColor="@color/white"
+            android:textColor="@color/text_color"
             android:textSize="20sp"
             android:textStyle="bold"
             tools:ignore="RelativeOverlap" />
@@ -78,7 +78,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/round_top_corners"
-        android:backgroundTint="@color/grey2"
+        android:backgroundTint="@color/color1"
         android:padding="10dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -97,9 +97,9 @@
             android:inputType="text"
             android:paddingHorizontal="10dp"
             android:paddingEnd="40dp"
-            android:textColor="@color/white"
-            android:textColorHint="@color/white"
-            app:backgroundTint="@color/grey4"
+            android:textColor="@color/text_color"
+            android:textColorHint="@color/text_hint"
+            app:backgroundTint="@color/primary_color"
             tools:ignore="RtlSymmetry" />
 
         <ImageButton
@@ -124,15 +124,15 @@
             android:layout_width="35dp"
             android:layout_height="35dp"
             android:layout_alignParentEnd="true"
-            android:background="@drawable/round_btn"
+            android:background="@drawable/circle"
             android:contentDescription="@string/todo"
             android:src="@drawable/ic_send"
-            app:backgroundTint="@color/grey4"
+            app:backgroundTint="@color/primary_color"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="1.0"
             app:layout_constraintStart_toStartOf="parent"
-            app:tint="@color/grey9" />
+            app:tint="@color/secondary_color" />
     </RelativeLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

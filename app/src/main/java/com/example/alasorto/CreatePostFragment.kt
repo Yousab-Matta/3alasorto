@@ -1,295 +1,147 @@
 package com.example.alasorto
 
-import android.app.Activity
-import android.app.AlertDialog
-import android.content.ContentResolver
-import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.OpenableColumns
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.Window
-import android.widget.EditText
+import android.widget.Button
 import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
-import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider
-import com.bumptech.glide.Glide
+import androidx.viewpager2.widget.ViewPager2
+import com.example.alasorto.adapters.CreatePostFragmentAdapter
+import com.example.alasorto.dataClass.PollPost
 import com.example.alasorto.dataClass.Posts
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
-import com.yalantis.ucrop.UCrop
+import com.example.alasorto.dataClass.VideoPost
 import com.yalantis.ucrop.UCropActivity.*
-import java.io.File
-
-private const val RESULT_OK = -1
-private const val RESULT_CANCEL = 0
 
 @Suppress("DEPRECATION")
 class CreatePostFragment : Fragment() {
-    private lateinit var titleET: EditText
-    private lateinit var descET: EditText
-    private lateinit var dayET: EditText
-    private lateinit var monthET: EditText
-    private lateinit var yearET: EditText
-    private lateinit var selectIV: ImageView
-    private lateinit var postIV: ImageView
-    private lateinit var removeImageBtn: ImageButton
-    private lateinit var createPostBtn: ImageButton
-    private lateinit var viewModel: AppViewModel
-    private lateinit var dialog: AlertDialog
-    private lateinit var builder: AlertDialog.Builder
-    private lateinit var window: Window
-    private lateinit var internetCheck: InternetCheck
-    private lateinit var postImageLink: String
-    private lateinit var postId: String
-    private var hasConnection = false
+    private lateinit var headerTV: TextView
+    private lateinit var finishBtn: ImageButton
+    private lateinit var createPostBtn: Button
+    private lateinit var createPollBtn: Button
+    private lateinit var postTypeLL: LinearLayout
+    private lateinit var viewPager: ViewPager2
     private var isNewPost = true
-    private var postImage: Uri? = null
+    private var post: Posts? = null
+    private var videoPost: VideoPost? = null
+    private var pollPost: PollPost? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        val view: View = inflater.inflate(R.layout.fragment_create_post, container, false)
+        return inflater.inflate(R.layout.fragment_create_post, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
         view.isClickable = true
 
-        //Initialize Widgets
-        titleET = view.findViewById(R.id.et_create_post_title)
-        descET = view.findViewById(R.id.et_create_post_desc)
-        dayET = view.findViewById(R.id.et_post_day)
-        monthET = view.findViewById(R.id.et_post_month)
-        yearET = view.findViewById(R.id.et_post_year)
-        selectIV = view.findViewById(R.id.iv_create_post_select)
-        postIV = view.findViewById(R.id.iv_create_post_image)
-        removeImageBtn = view.findViewById(R.id.ib_post_remove_image)
-        createPostBtn = view.findViewById(R.id.ib_create_post)
+        headerTV = view.findViewById(R.id.tv_create_event_title)
+        finishBtn = view.findViewById(R.id.ib_create_post)
+        viewPager = view.findViewById(R.id.create_post_pager)
+        createPostBtn = view.findViewById(R.id.btn_create_post)
+        createPollBtn = view.findViewById(R.id.btn_create_poll)
+        postTypeLL = view.findViewById(R.id.ll_post_type_select)
+
+        //Disable swipe animation for viewPager
+        viewPager.isUserInputEnabled = false
+
+        //Set color of button representing current fragment
+        createPostBtn.backgroundTintList =
+            ContextCompat.getColorStateList(requireContext(), R.color.secondary_color)
 
         //Get edit post data
         val args = this.arguments
         if (args != null) {
             isNewPost = args.getBoolean("IsNewPost")
             if (!isNewPost) {
-                val post = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    args.getParcelable("Editing_Post", Posts::class.java)
+                headerTV.text = getString(R.string.edit_post)
+                postTypeLL.visibility = View.GONE
+                post = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    args.getParcelable("EDITING_POST", Posts::class.java)
                 } else {
-                    args.getParcelable("Editing_Post")
+                    args.getParcelable("EDITING_POST")
                 }
-                if (post != null) {
-                    titleET.setText(post.Title)
-                    descET.setText(post.Description)
-                    if (post.Day != null) {
-                        dayET.setText(post.Day.toString())
-                    }
-                    if (post.Month != null) {
-                        monthET.setText(post.Month.toString())
-                    }
-                    if (post.Year != null) {
-                        yearET.setText(post.Year.toString())
-                    }
-                    if (post.ImageLink != null && post.ImageLink.isNotEmpty()) {
-                        removeImageBtn.visibility = View.VISIBLE
-                        postIV.visibility = View.VISIBLE
-                        Glide.with(requireContext()).load(post.ImageLink).into(postIV)
-                    }
-                    postImageLink = post.ImageLink.toString()
-                    postId = post.ID.toString()
+                pollPost = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    args.getParcelable("EDITING_POLL_POST", PollPost::class.java)
+                } else {
+                    args.getParcelable("EDITING_POLL_POST")
+                }
+                videoPost = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    args.getParcelable("EDITING_VIDEO_POST", VideoPost::class.java)
+                } else {
+                    args.getParcelable("EDITING_VIDEO_POST")
                 }
             }
         }
 
-        viewModel = ViewModelProvider(this)[AppViewModel::class.java]
+        viewPager.adapter =
+            CreatePostFragmentAdapter(
+                childFragmentManager,
+                lifecycle,
+                isNewPost,
+                post,
+                pollPost,
+                videoPost
+            )
 
-        return view
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        internetCheck = InternetCheck(requireActivity().application)
-        internetCheck.observe(this.viewLifecycleOwner) {
-            hasConnection = it
-        }
-
-        //Create Alert Dialogue
-        builder = AlertDialog.Builder(context)
-        builder.setCancelable(false)
-        builder.setView(R.layout.progress_dialogue)
-        dialog = builder.create()
-        window = dialog.window!!
-        window.setBackgroundDrawableResource(android.R.color.transparent)
-
-        viewModel.clearFragmentMLD.observe(this.viewLifecycleOwner, Observer {
-            if (it) {
-                dialog.dismiss()
-                requireActivity().supportFragmentManager.popBackStack(
-                    "HANDLE_POSTS_FRAGMENT", FragmentManager.POP_BACK_STACK_INCLUSIVE
-                )
+        if (!isNewPost) {
+            if (post != null || videoPost != null) {
+                viewPager.setCurrentItem(0, false)
+            } else if (pollPost != null && post == null && videoPost == null) {
+                viewPager.setCurrentItem(1, false)
             }
-        })
-
-        selectIV.setOnClickListener(View.OnClickListener {
-            openGalleryForImage()
-        })
-
-        removeImageBtn.setOnClickListener(View.OnClickListener {
-            removeImageBtn.visibility = View.GONE
-            postIV.visibility = View.GONE
-            postImage = null
-            postImageLink = ""
-        })
+        }
 
         createPostBtn.setOnClickListener(View.OnClickListener {
-            //List that contains the ETs that MUST be filled
-            val viewsList = arrayListOf(
-                titleET,
-                descET,
-                dayET,
-                monthET,
-                yearET
-            )
-            //If any of ETs are not filled app will show error drawable and background
-            for (et in viewsList) {
-                if (et.text.isEmpty()) {
-                    et.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                        0,
-                        0,
-                        R.drawable.ic_error,
-                        0
-                    )
-                    et.background =
-                        ContextCompat.getDrawable(requireContext(), R.drawable.error_custom_input)
-                }
-            }
-
-            //Get TVs texts to String
-            val title = titleET.text.toString().trim()
-            val desc = descET.text.toString().trim()
-            val day = dayET.text.toString().trim()
-            val month = monthET.text.toString().trim()
-            val year = yearET.text.toString().trim()
-
-            //Check internet connection
-            if (hasConnection) {
-                if (title.isNotEmpty() && desc.isNotEmpty() && day.isNotEmpty()
-                    && month.isNotEmpty() && year.isNotEmpty()
-                ) {
-                    dialog.show()
-                    if (isNewPost) {
-                        viewModel.createPost(
-                            title,
-                            desc,
-                            Firebase.auth.currentUser?.phoneNumber.toString(),
-                            day.toInt(),
-                            month.toInt(),
-                            year.toInt(),
-                            postImage,
-                            requireActivity().contentResolver
-                        )
-                    } else {
-                        viewModel.editPost(
-                            title, desc, postId, postImageLink, day.toInt(), month.toInt(),
-                            year.toInt(), postImage, requireActivity().contentResolver
-                        )
-                    }
-                } else {
-                    Toast.makeText(context, R.string.missing_data, Toast.LENGTH_SHORT).show()
-                }
-            }else{
-                Toast.makeText(context, R.string.check_internet, Toast.LENGTH_SHORT).show()
-            }
+            switchFragment(0)
         })
 
-        requireActivity().onBackPressedDispatcher.addCallback(
-            this.viewLifecycleOwner, object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    activity!!.supportFragmentManager.popBackStack(
-                        "HANDLE_POSTS_FRAGMENT",
-                        FragmentManager.POP_BACK_STACK_INCLUSIVE
-                    )
-                    this.isEnabled = false
+        createPollBtn.setOnClickListener(View.OnClickListener {
+            switchFragment(1)
+        })
+
+        finishBtn.setOnClickListener(View.OnClickListener {
+            Log.d("VIEW_PAGER", childFragmentManager.fragments.size.toString())
+            if (childFragmentManager.fragments.size > 1) {
+                val fragment = childFragmentManager.fragments[viewPager.currentItem]
+                if (fragment is PostFragment) {
+                    fragment.createPost()
+                } else if (fragment is PollFragment) {
+                    fragment.uploadPoll()
                 }
-            })
-
-    }
-
-    //Crop Image
-    //Select Image Launchers
-    private val pickImageLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                val data: Intent = result.data!!
-                val sourceUri: Uri = data.data!!
-                val destinationUri = Uri.fromFile(
-                    File(
-                        requireActivity().cacheDir,
-                        queryName(requireActivity().contentResolver, sourceUri)
-                    )
-                )
-
-                //UCrop options
-                val options = UCrop.Options()
-                options.setToolbarColor(ContextCompat.getColor(requireActivity(), R.color.black))
-                options.setStatusBarColor(ContextCompat.getColor(requireActivity(), R.color.black))
-                options.setToolbarWidgetColor(
-                    ContextCompat.getColor(
-                        requireActivity(),
-                        R.color.white
-                    )
-                )
-
-                options.setFreeStyleCropEnabled(true)
-                options.setAllowedGestures(SCALE, ALL, SCALE)
-
-                val intent = UCrop.of(sourceUri, destinationUri)
-                    .withOptions(options)
-                    .getIntent(requireActivity())
-                cropResult.launch(intent)
+            } else {
+                val fragment = childFragmentManager.fragments[0]
+                if (fragment is PostFragment) {
+                    fragment.createPost()
+                } else if (fragment is PollFragment) {
+                    fragment.uploadPoll()
+                }
             }
-        }
-
-    //Crop Result Launcher
-    private val cropResult = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            assert(result.data != null)
-            val resultUri = UCrop.getOutput(result.data!!)
-            if (resultUri != null) {
-                postIV.visibility = View.VISIBLE
-                removeImageBtn.visibility = View.VISIBLE
-                postIV.setImageURI(resultUri)
-                postImage = resultUri
-            }
-        } else if (result.resultCode == RESULT_CANCEL) {
-            Toast.makeText(context, "Image was not Uploaded", Toast.LENGTH_SHORT).show()
-        }
+        })
     }
 
-    //UCrop Sh!t
-    private fun queryName(resolver: ContentResolver, uri: Uri): String {
-        val returnCursor = resolver.query(uri, null, null, null, null)
-        val nameIndex = returnCursor!!.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-        returnCursor.moveToFirst()
-        val name = returnCursor.getString(nameIndex)
-        returnCursor.close()
-        return name
-    }
-
-    //Select Image
-    private fun openGalleryForImage() {
-        val intent = Intent(Intent.ACTION_PICK)
-        intent.type = "image/*"
-        pickImageLauncher.launch(intent)
+    private fun switchFragment(position: Int) {
+        viewPager.setCurrentItem(position, true)
+        if (viewPager.currentItem == 0) {
+            createPostBtn.backgroundTintList =
+                ContextCompat.getColorStateList(requireContext(), R.color.secondary_color)
+            createPollBtn.backgroundTintList =
+                ContextCompat.getColorStateList(requireContext(), R.color.btn_color)
+        } else {
+            createPostBtn.backgroundTintList =
+                ContextCompat.getColorStateList(requireContext(), R.color.btn_color)
+            createPollBtn.backgroundTintList =
+                ContextCompat.getColorStateList(requireContext(), R.color.secondary_color)
+        }
     }
 }

@@ -1,55 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/cv_user_item"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="5dp"
-    app:cardBackgroundColor="@color/grey5"
-    app:cardCornerRadius="20dp">
+    android:backgroundTint="@android:color/transparent"
+    app:cardCornerRadius="15dp">
 
-    <RelativeLayout
-        android:id="@+id/rl_user_item"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <de.hdodenhof.circleimageview.CircleImageView
-            android:id="@+id/iv_user_item"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_centerVertical="true"
-            android:layout_marginStart="10dp"
-            android:src="@drawable/image_logo"
-            app:civ_border_color="@color/grey3"
-            app:civ_border_width="1dp" />
-
-        <TextView
-            android:id="@+id/tv_user_item_name"
+        <RelativeLayout
+            android:id="@+id/rl_user_item"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="10dp"
-            android:layout_toStartOf="@+id/tv_user_percent"
-            android:layout_toEndOf="@+id/iv_user_item"
-            android:paddingVertical="5dp"
-            android:text="@string/app_name"
-            android:textColor="@color/white"
-            android:textSize="30sp"
-            android:textStyle="bold" />
+            android:layout_marginStart="25dp"
+            android:background="@drawable/round_corners"
+            android:backgroundTint="@color/primary_color"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:id="@+id/tv_user_percent"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentTop="@+id/tv_user_item_name"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="@+id/tv_user_item_name"
+            <TextView
+                android:id="@+id/tv_user_item_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true"
+                android:layout_marginStart="25dp"
+                android:gravity="center_vertical"
+                android:layoutDirection="locale"
+                android:paddingVertical="10dp"
+                android:paddingStart="30dp"
+                android:text="@string/app_name"
+                android:textColor="@color/text_color"
+                android:textSize="25sp"
+                android:textStyle="bold"
+
+                tools:ignore="RtlSymmetry" />
+
+        </RelativeLayout>
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_user_item"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
             android:layout_centerVertical="true"
-            android:layout_marginEnd="10dp"
-            android:textColor="@color/white"
-            android:textSize="25sp"
-            android:textStyle="bold"
-            android:visibility="visible" />
-
-    </RelativeLayout>
+            android:src="@drawable/image_logo"
+            app:civ_border_color="@color/primary_color"
+            app:civ_border_width="1dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.cardview.widget.CardView>
