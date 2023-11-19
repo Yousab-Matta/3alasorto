@@ -56,30 +56,12 @@
 
         </RelativeLayout>
 
-        <de.hdodenhof.circleimageview.CircleImageView
-            android:id="@+id/iv_create_user"
-            android:layout_width="150dp"
-            android:layout_height="150dp"
-            android:layout_below="@+id/rl_header"
-            android:layout_centerHorizontal="true"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/ic_person"
-            android:backgroundTint="@color/primary_color"
-            app:civ_border_color="@color/text_color"
-            app:civ_border_width="2dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:ignore="ImageContrastCheck" />
-
         <EditText
             android:id="@+id/et_user_name"
             style="@style/EditTextCustomStyle"
             android:layout_width="300dp"
             android:layout_height="40dp"
-            android:layout_below="@+id/iv_create_user"
+            android:layout_below="@+id/rl_header"
             android:layout_centerHorizontal="true"
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
@@ -296,8 +278,7 @@
             android:layout_below="@+id/tv_create_user_status"
             android:layout_alignStart="@+id/tv_create_user_status"
             android:layout_marginTop="15dp"
-            android:background="@drawable/custom_input"
-            android:textAlignment="center"
+            android:gravity="center"
             android:textColor="@color/text_color"
             android:textSize="20sp"
             android:textStyle="bold" />

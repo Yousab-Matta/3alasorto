@@ -2,7 +2,6 @@ package com.example.alasorto.adapters
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,27 +12,24 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.alasorto.R
-import com.example.alasorto.dataClass.Users
+import com.example.alasorto.dataClass.UserData
 
 class AttAllUsersAdapter(
-    usersList: ArrayList<Users>,
-    private val attendedUsersList: ArrayList<Users>,
+    usersList: ArrayList<UserData>,
+    private val attendedUsersList: ArrayList<UserData>,
     private val onClickListener: OnClickListener,
     private val context: Context
 ) : RecyclerView.Adapter<AttAllUsersAdapter.ViewHolder>() {
-    private var filteredUsersList = ArrayList<Users>(usersList)
+    private var filteredUsersList = ArrayList<UserData>(usersList)
     private lateinit var mViewHolder: ViewHolder
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_user, parent, false)
-        val viewHolder = ViewHolder(view, this, onClickListener)
-        mViewHolder = viewHolder
-        return viewHolder
+        return ViewHolder(view, this)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        Log.d("ARRAY_SIZE", filteredUsersList.size.toString())
         val user = filteredUsersList[position]
 
         if (attendedUsersList.contains(user)) {
@@ -44,8 +40,15 @@ class AttAllUsersAdapter(
                 ContextCompat.getColorStateList(context, R.color.primary_color)
         }
 
-        holder.nameTV.text = user.Name
-        Glide.with(holder.userIV).load(user.ImageLink).into(holder.userIV)
+        holder.nameTV.text = user.name
+
+        if (user.imageLink.isNotEmpty()) {
+            Glide.with(holder.userIV).load(user.imageLink).into(holder.userIV)
+        } else {
+            Glide.with(holder.userIV).load(R.drawable.image_logo)
+                .into(holder.userIV)
+        }
+
     }
 
     override fun getItemCount(): Int {
@@ -53,26 +56,25 @@ class AttAllUsersAdapter(
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    fun filterList(filterList: ArrayList<Users>) {
+    fun filterList(filterList: ArrayList<UserData>) {
         filteredUsersList = filterList
         notifyDataSetChanged()
     }
 
-    fun getFilteredList(): ArrayList<Users> {
+    fun getFilteredList(): ArrayList<UserData> {
         return filteredUsersList
     }
 
-    fun getAttendedList(): ArrayList<Users> {
+    fun getAttendedList(): ArrayList<UserData> {
         return attendedUsersList
     }
 
     class ViewHolder(
         itemView: View,
-        private val adapter: AttAllUsersAdapter,
-        private val onClickListener: OnClickListener
+        private val adapter: AttAllUsersAdapter
     ) :
         RecyclerView.ViewHolder(itemView), View.OnClickListener {
-        val userDataRl: RelativeLayout = itemView.findViewById(R.id.rl_user_item)
+        val userDataRl: RelativeLayout = itemView.findViewById(R.id.cl_user_item)
         val nameTV: TextView = itemView.findViewById(R.id.tv_user_item_name)
         val userIV: ImageView = itemView.findViewById(R.id.iv_user_item)
 
@@ -85,13 +87,13 @@ class AttAllUsersAdapter(
             val selectedUser = adapter.getFilteredList()[layoutPosition]
 
             if (attendedUsersList.contains(selectedUser)) {
-                onClickListener.onClick(
+                adapter.onClickListener.onClick(
                     selectedUser,
                     false,
                     layoutPosition
                 )
             } else {
-                onClickListener.onClick(
+                adapter.onClickListener.onClick(
                     selectedUser,
                     true,
                     layoutPosition
@@ -101,6 +103,6 @@ class AttAllUsersAdapter(
     }
 
     interface OnClickListener {
-        fun onClick(user: Users, attend: Boolean, position: Int)
+        fun onClick(user: UserData, attend: Boolean, position: Int)
     }
 }

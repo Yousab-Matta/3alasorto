@@ -6,20 +6,21 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.RelativeLayout
 import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.alasorto.R
-import com.example.alasorto.dataClass.Users
+import com.example.alasorto.dataClass.UserData
 
 class AllUsersAdapter(
-    usersList: ArrayList<Users>,
-    private val selectedUsersList: ArrayList<Users>,
+    usersList: ArrayList<UserData>,
+    private val selectedUsersList: ArrayList<UserData>,
     private val onClickListener: OnClickListener,
     private val onLongClickListener: OnLongClickListener,
-    private val access: String,
+    private val access: ArrayList<String>,
     private val context: Context,
 ) : RecyclerView.Adapter<AllUsersAdapter.ViewHolder>() {
 
@@ -28,10 +29,10 @@ class AllUsersAdapter(
         private const val ITEM_TYPE_ADMIN_ITEM = 1
     }
 
-    private var filteredUsersList: ArrayList<Users> = usersList
+    private var filteredUsersList: ArrayList<UserData> = usersList
 
     override fun getItemViewType(position: Int): Int {
-        return if (access == "User") {
+        return if (!access.contains("HANDLE_USERS")) {
             0
         } else {
             1
@@ -54,7 +55,6 @@ class AllUsersAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val user = filteredUsersList[position]
 
-        //context.resources.getColorStateList(R.color.green,context.theme)
 
         if (selectedUsersList.contains(user)) {
             holder.userDataRl.backgroundTintList =
@@ -64,17 +64,31 @@ class AllUsersAdapter(
                 ContextCompat.getColorStateList(context, R.color.primary_color)
         }
 
-        holder.nameTV.text = user.Name
-        "${user.AttendedPercent.toString()} %".also { holder.attendanceTV.text = it }
-        "${user.Points.toString()} Points".also { holder.pointsTV.text = it }
-        Glide.with(holder.userIV).load(user.ImageLink).into(holder.userIV)
+        holder.nameTV.text = user.name
+
+        val attendancePercent = if (user.attendedTimes != 0 && user.attendanceDue != 0) {
+            ((user.attendedTimes.toFloat() / user.attendanceDue.toFloat()) * 100)
+        } else {
+            0f
+        }
+
+        "$attendancePercent %".also { holder.attendanceTV.text = it }
+        "${user.points} Points".also { holder.pointsTV.text = it }
+
+        if (user.imageLink.isNotEmpty()) {
+            Glide.with(holder.userIV).load(user.imageLink)
+                .into(holder.userIV)
+        } else {
+            Glide.with(holder.userIV).load(R.drawable.image_logo)
+                .into(holder.userIV)
+        }
     }
 
     override fun getItemCount(): Int {
         return filteredUsersList.size
     }
 
-    fun getFilteredList(): ArrayList<Users> {
+    fun getFilteredList(): ArrayList<UserData> {
         return filteredUsersList
     }
 
@@ -85,7 +99,7 @@ class AllUsersAdapter(
         private val adapter: AllUsersAdapter,
     ) :
         RecyclerView.ViewHolder(itemView), View.OnClickListener, View.OnLongClickListener {
-        val userDataRl: RelativeLayout = itemView.findViewById(R.id.rl_user_item)
+        val userDataRl: ConstraintLayout = itemView.findViewById(R.id.cl_user_item)
         val nameTV: TextView = itemView.findViewById(R.id.tv_user_item_name)
         val attendanceTV: TextView = itemView.findViewById(R.id.tv_user_percent)
         val pointsTV: TextView = itemView.findViewById(R.id.tv_user_points)
@@ -109,10 +123,10 @@ class AllUsersAdapter(
     }
 
     interface OnClickListener {
-        fun onClick(user: Users)
+        fun onClick(user: UserData)
     }
 
     interface OnLongClickListener {
-        fun onLongClick(user: Users)
+        fun onLongClick(user: UserData)
     }
 }

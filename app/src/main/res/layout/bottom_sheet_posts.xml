@@ -13,7 +13,7 @@
         android:layout_height="8dp"
         android:layout_gravity="center"
         android:layout_marginTop="15dp"
-        android:background="@drawable/round_corners"
+        android:background="@drawable/round_corners_15dp"
         android:backgroundTint="@color/secondary_color" />
 
     <LinearLayout

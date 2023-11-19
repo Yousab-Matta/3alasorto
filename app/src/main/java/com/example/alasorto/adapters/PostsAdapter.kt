@@ -1,53 +1,94 @@
 package com.example.alasorto.adapters
 
 import android.annotation.SuppressLint
-import android.content.Context
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.view.View.GONE
+import android.view.View.VISIBLE
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.ContextCompat
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.SimpleItemAnimator
 import com.bumptech.glide.Glide
 import com.example.alasorto.R
 import com.example.alasorto.dataClass.*
-import com.example.alasorto.utils.LinearSpacingItemDecorator
-import com.example.alasorto.utils.VideoPlayer
+import com.example.alasorto.utils.*
+import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.*
 
 class PostsAdapter(
-    private val postsList: ArrayList<Any>,
-    private val postsOwnersList: ArrayList<Users>,
-    private var reactsList: ArrayList<PostReact>,
-    private val onPostClickListener: OnPostClickListener,   //On post click (menu - user IV - user TV) instance from home fragment
-    private val onPollItemClicked: PollPostAdapter.OnPollItemClicked, //On poll item click instance from home fragment
-    private val currentUserId: String,
-    private val context: Context
+    private val postsList: ArrayList<Post>,
+    private var showComments: (String) -> Unit,
+    private var showPostControls: (Post) -> Unit,
+    private var pollItemSelect: (Post, String) -> Unit,
+    private var enlargeMedia: (ArrayList<MediaData>?, Int) -> Unit,
+    private var enlargeImage: (String) -> Unit,
+    private var createReact: (UserSelection, String) -> Unit,
+    private var deleteReact: (UserSelection, String) -> Unit
+
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    private val currentUserId = FirebaseAuth.getInstance().currentUser!!.phoneNumber!!
+    private val sdf = SimpleDateFormat("EEE, d, MMM, HH:mm:ss", Locale.ENGLISH)
+    private val handleReacts = HandleReacts()
+    private val usersList = ArrayList<UserData>()
+    private val reactsList = ArrayList<PostReact>()
+    private val pollDataList = ArrayList<PollItemData>()
 
     companion object {
         private const val ITEM_POST = 0
-        private const val ITEM_VIDEO_POST = 1
-        private const val ITEM_POLL = 2
+        private const val ITEM_POLL = 1
+    }
+
+    fun updateReacts(newReactsList: PostReact) {
+        val currentReactsListReplica = reactsList
+        reactsList.clear()
+        reactsList.addAll(
+            handleReacts.handleReactsList(
+                currentReactsListReplica,
+                newReactsList
+            )
+        )
+        notifyItemRangeChanged(0, itemCount)
+    }
+
+    fun updateUsersList(userData: UserData) {
+        if (usersList.any { it.phone == userData.phone }) {
+            usersList.remove(usersList.first { it.phone == userData.phone })
+        }
+
+        usersList.add(userData)
+
+        val ownersPostsList = postsList.filter { it.ownerID == userData.phone }
+        for (post in ownersPostsList) {
+            notifyItemChanged(postsList.indexOf(post))
+        }
+    }
+
+    fun updatePollData(newPollData: PollItemData) {
+        val index = pollDataList.indexOfFirst { it1 -> it1.postId == newPollData.postId }
+        if (pollDataList.any { it2 -> it2.postId == newPollData.postId }) {
+            pollDataList[index] = newPollData
+            notifyItemRangeChanged(0, itemCount)
+        } else {
+            pollDataList.add(newPollData)
+            notifyItemRangeChanged(0, itemCount)
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
-        return when (postsList[position]) {
-            is Posts -> {
-                ITEM_POST
-            }
-            is VideoPost -> {
-                ITEM_VIDEO_POST
-            }
-            else -> {
-                ITEM_POLL
-            }
+        return if (postsList[position].postType == "Post") {
+            ITEM_POST
+        } else {
+            ITEM_POLL
         }
+    }
+
+    override fun getItemId(position: Int): Long {
+        return position.toLong()
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -55,17 +96,12 @@ class PostsAdapter(
             ITEM_POST -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_post, parent, false)
-                PostViewHolder(view, onPostClickListener, this, context)
-            }
-            ITEM_VIDEO_POST -> {
-                val view = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.item_video_post, parent, false)
-                VideoPostViewHolder(view, onPostClickListener, this, context)
+                PostViewHolder(view, this)
             }
             else -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_poll_post, parent, false)
-                PollViewHolder(view, this, onPostClickListener, onPollItemClicked, context)
+                PollViewHolder(view, this)
             }
         }
     }
@@ -73,38 +109,18 @@ class PostsAdapter(
     @SuppressLint("SimpleDateFormat")
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val post = postsList[position]
-        val currentPostReacts = ArrayList<PostReact>()
 
-        for (react in reactsList) {
-            if (post is Posts) {
-                if (react.postId.equals(post.id) && !currentPostReacts.contains(react)) {
-                    currentPostReacts.add(react)
-                }
-            } else if (post is VideoPost) {
-                if (react.postId.equals(post.id) && !currentPostReacts.contains(react)) {
-                    currentPostReacts.add(react)
-                }
-            } else if (post is PollPost) {
-                if (react.postId.equals(post.id) && !currentPostReacts.contains(react)) {
-                    currentPostReacts.add(react)
-                }
-            }
+        val react = if (reactsList.any { it.postId == post.postId }) {
+            val postReacts = reactsList.first { it.postId == post.postId }
+            postReacts.reacts.firstOrNull { it.userId == currentUserId }
+        } else {
+            null
         }
 
         if (getItemViewType(position) == ITEM_POST) {
-            (holder as PostViewHolder).bind(
-                post as Posts,
-                currentPostReacts,
-                currentUserId
-            )
-        } else if (getItemViewType(position) == ITEM_VIDEO_POST) {
-            (holder as VideoPostViewHolder).bind(
-                post as VideoPost,
-                currentPostReacts,
-                currentUserId
-            )
+            (holder as PostViewHolder).bind(post, react)
         } else {
-            (holder as PollViewHolder).bind(post as PollPost)
+            (holder as PollViewHolder).bind(post, react)
         }
     }
 
@@ -112,271 +128,89 @@ class PostsAdapter(
         return postsList.size
     }
 
-    fun getPostByPosition(position: Int): Any {
-        return postsList[position]
-    }
-
-    fun getOwnerByPosition(position: Int): Users {
-        return postsOwnersList[position]
-    }
-
-    fun getCertainPostOwner(ownerID: String): Users? {
-        var user: Users? = null
-        for (owner in postsOwnersList) {
-            if (owner.Phone == ownerID) {
-                user = owner
-                break
-            }
-        }
-        return user
-    }
-
-    fun stopPlayback() {
-
+    fun getPostOwner(ownerID: String): UserData? {
+        return usersList.firstOrNull { it.phone == ownerID }
     }
 
     @SuppressLint("ClickableViewAccessibility")
     class PostViewHolder(
         itemView: View,
-        listener: OnPostClickListener,
-        adapter: PostsAdapter,
-        context: Context
+        adapter: PostsAdapter
     ) : RecyclerView.ViewHolder(itemView), View.OnClickListener {
+        private val mAdapter = adapter
 
-        private val titleTV: TextView = itemView.findViewById(R.id.tv_post_title)
-        private val postIV: ImageView = itemView.findViewById(R.id.iv_post_image)
+        private val mediaLayout: ConstraintLayout = itemView.findViewById(R.id.layout_media)
         private val descTV: TextView = itemView.findViewById(R.id.tv_post_desc)
         private val dateTV: TextView = itemView.findViewById(R.id.tv_post_date)
         private val nameTV: TextView = itemView.findViewById(R.id.tv_post_owner)
         private val ownerIV: ImageView = itemView.findViewById(R.id.iv_post_owner)
         private val commentTV: TextView = itemView.findViewById(R.id.tv_post_comment)
-        private val reactsTV: TextView = itemView.findViewById(R.id.tv_post_react)
+        private val reactsTV: ReactsButton = itemView.findViewById(R.id.tv_post_react)
         private val postMenuIV: ImageView = itemView.findViewById(R.id.iv_post_menu)
+        private val postMediaLayout = PostMediaLayout(itemView.context)
 
-        private val mListener = listener
-        private val mAdapter = adapter
-        private val mContext = context
-        private var ownerHasEmoji = false
+        private var currentPost: Post? = null
 
         init {
             commentTV.setOnClickListener(this)
-            reactsTV.setOnClickListener(this)
             postMenuIV.setOnClickListener(this)
-            nameTV.setOnClickListener(this)
-            ownerIV.setOnClickListener(this)
-
-            reactsTV.text = mContext.getString(R.string.react)
-            reactsTV.setTextColor(
-                ContextCompat.getColor(mContext, R.color.text_color)
-            )
         }
 
-        fun bind(
-            post: Posts,
-            reactsList: ArrayList<PostReact>,
-            currentUserId: String
-        ) {
-            for (react in reactsList) {
-                if (react.reactOwner == currentUserId && !ownerHasEmoji) {
-                    when (react.react) {
-                        mContext.getString(R.string.emoji_1) -> {
-                            reactsTV.text = mContext.getString(R.string.haha)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.yellow))
-                        }
-                        mContext.getString(R.string.emoji_2) -> {
-                            reactsTV.text = mContext.getString(R.string.sad)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.yellow))
-                        }
-                        mContext.getString(R.string.emoji_3) -> {
-                            reactsTV.text = mContext.getString(R.string.angry)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.orange))
-                        }
-                        mContext.getString(R.string.emoji_4) -> {
-                            reactsTV.text = mContext.getString(R.string.wow)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.yellow))
-                        }
-                        mContext.getString(R.string.emoji_5) -> {
-                            reactsTV.text = mContext.getString(R.string.love)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.red))
-                        }
-                    }
-                    //Set owner has emoji = true
-                    ownerHasEmoji = true
-                } else {
-                    break
-                }
+        fun bind(post: Post, react: UserSelection?) {
+            if (post.ownerID != mAdapter.currentUserId) {
+                postMenuIV.visibility = GONE
+            } else {
+                postMenuIV.visibility = VISIBLE
             }
 
-            titleTV.text = post.title
-            descTV.text = post.description
-            val sdf = SimpleDateFormat("EEE, d, MMM, HH:mm:ss", Locale.ENGLISH)
+            if (post.mediaList != null && post.mediaList!!.size > 0) {
+                mediaLayout.visibility = VISIBLE
+                postMediaLayout.setView(post.mediaList!!, mediaLayout, mAdapter.enlargeMedia)
+            } else {
+                mediaLayout.visibility = GONE
+            }
+
+            if (post.description != null && post.description.isNotEmpty()) {
+                descTV.visibility = VISIBLE
+                descTV.text = post.description
+            } else {
+                descTV.visibility = GONE
+            }
+
+            reactsTV.setArgs(
+                post.postId,
+                mAdapter.createReact,
+                mAdapter.deleteReact
+            )
+
+            if (react != null) {
+                reactsTV.setReact(react.userChoice)
+            }
+
             val date = post.postDate
-            dateTV.text = sdf.format(date!!)
-            Glide.with(postIV).load(post.imageLink).into(postIV)
-            val owner: Users? = mAdapter.getCertainPostOwner(post.ownerID)
+            dateTV.text = mAdapter.sdf.format(date!!)
+
+            val owner: UserData? = mAdapter.getPostOwner(post.ownerID)
             if (owner != null) {
-                nameTV.text = owner.Name
-                Glide.with(ownerIV).load(owner.ImageLink).into(ownerIV)
+                nameTV.text = owner.name
+
+                if (owner.imageLink.isNotEmpty()) {
+                    Glide.with(ownerIV).load(owner.imageLink).into(ownerIV)
+                }
             }
         }
 
         override fun onClick(p0: View?) {
-            val post = mAdapter.getPostByPosition(adapterPosition)
-            if (post is Posts) {
+            if (currentPost != null) {
                 when (p0) {
                     //When user click on comments TV interface sends post ID and opens comments fragment from user fragment
                     commentTV -> {
-                        mListener.onCommentClick(post.id!!)
+                        mAdapter.showComments(currentPost!!.postId)
                     }
+
                     //When user click on menu IV interface sends post item and opens settings from user fragment
                     postMenuIV -> {
-                        mListener.onPostClick(post)
-                    }
-                    //When user click on post owner IV or TV interface sends owner id and goes to that user profile
-                    nameTV, ownerIV -> {
-                        val owner: Users? = mAdapter.getCertainPostOwner(post.ownerID)
-                        mListener.onPostOwnerClick(owner!!)
-                    }
-                    reactsTV -> {
-                        val height = itemView.bottom - reactsTV.height
-                        if (ownerHasEmoji) {
-                            //Call fragment fun to remove react
-                            mListener.onReactsClick(height, post, "REMOVE")
-                            //Set reacts TV to its original color and state
-                            reactsTV.text = mContext.getString(R.string.react)
-                            reactsTV.setTextColor(
-                                ContextCompat.getColor(mContext, R.color.text_color)
-                            )
-                            //Set owner has emoji to false
-                            ownerHasEmoji = false
-                        } else {
-                            mListener.onReactsClick(height, post, "000")
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
-    class VideoPostViewHolder(
-        itemView: View,
-        listener: OnPostClickListener,
-        adapter: PostsAdapter,
-        context: Context
-    ) : RecyclerView.ViewHolder(itemView), View.OnClickListener {
-
-        private val titleTV: TextView = itemView.findViewById(R.id.tv_post_title)
-        private val postVideo: ConstraintLayout = itemView.findViewById(R.id.video_view_post)
-        private val descTV: TextView = itemView.findViewById(R.id.tv_post_desc)
-        private val dateTV: TextView = itemView.findViewById(R.id.tv_post_date)
-        private val nameTV: TextView = itemView.findViewById(R.id.tv_post_owner)
-        private val ownerIV: ImageView = itemView.findViewById(R.id.iv_post_owner)
-        private val commentTV: TextView = itemView.findViewById(R.id.tv_post_comment)
-        private val reactsTV: TextView = itemView.findViewById(R.id.tv_post_react)
-        private val postMenuIV: ImageView = itemView.findViewById(R.id.iv_post_menu)
-
-        private val mListener = listener
-        private val mAdapter = adapter
-        private val mContext = context
-        private var ownerHasEmoji = false
-        private val videoPlayer = VideoPlayer(itemView.context, postVideo)
-
-        init {
-            commentTV.setOnClickListener(this)
-            reactsTV.setOnClickListener(this)
-            postMenuIV.setOnClickListener(this)
-            nameTV.setOnClickListener(this)
-            ownerIV.setOnClickListener(this)
-
-            reactsTV.text = mContext.getString(R.string.react)
-            reactsTV.setTextColor(
-                ContextCompat.getColor(mContext, R.color.text_color)
-            )
-        }
-
-        fun bind(
-            post: VideoPost,
-            reactsList: ArrayList<PostReact>,
-            currentUserId: String
-        ) {
-            for (react in reactsList) {
-                if (react.reactOwner == currentUserId && !ownerHasEmoji) {
-                    when (react.react) {
-                        mContext.getString(R.string.emoji_1) -> {
-                            reactsTV.text = mContext.getString(R.string.haha)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.yellow))
-                        }
-                        mContext.getString(R.string.emoji_2) -> {
-                            reactsTV.text = mContext.getString(R.string.sad)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.yellow))
-                        }
-                        mContext.getString(R.string.emoji_3) -> {
-                            reactsTV.text = mContext.getString(R.string.angry)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.orange))
-                        }
-                        mContext.getString(R.string.emoji_4) -> {
-                            reactsTV.text = mContext.getString(R.string.wow)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.yellow))
-                        }
-                        mContext.getString(R.string.emoji_5) -> {
-                            reactsTV.text = mContext.getString(R.string.love)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.red))
-                        }
-                    }
-                    //Set owner has emoji = true
-                    ownerHasEmoji = true
-                } else {
-                    break
-                }
-            }
-
-            titleTV.text = post.title
-            descTV.text = post.description
-            val sdf = SimpleDateFormat("EEE, d, MMM, HH:mm:ss", Locale.ENGLISH)
-            val date = post.postDate
-            dateTV.text = sdf.format(date!!)
-            videoPlayer.setVideoLink(post.videoLink)
-            videoPlayer.setVideoParams(post.videoHeight)
-            val owner: Users? = mAdapter.getCertainPostOwner(post.ownerID)
-            if (owner != null) {
-                nameTV.text = owner.Name
-                Glide.with(ownerIV).load(owner.ImageLink).into(ownerIV)
-            }
-        }
-
-        override fun onClick(p0: View?) {
-            val post = mAdapter.getPostByPosition(adapterPosition)
-            if (post is VideoPost) {
-                when (p0) {
-                    //When user click on comments TV interface sends post ID and opens comments fragment from user fragment
-                    commentTV -> {
-                        mListener.onCommentClick(post.id)
-                    }
-                    //When user click on menu IV interface sends post item and opens settings from user fragment
-                    postMenuIV -> {
-                        mListener.onPostClick(post)
-                    }
-                    //When user click on post owner IV or TV interface sends owner id and goes to that user profile
-                    nameTV, ownerIV -> {
-                        val owner: Users? = mAdapter.getCertainPostOwner(post.ownerID)
-                        mListener.onPostOwnerClick(owner!!)
-                    }
-                    reactsTV -> {
-                        val height = itemView.bottom - reactsTV.height
-                        if (ownerHasEmoji) {
-                            //Call fragment fun to remove react
-                            mListener.onReactsClick(height, post, "REMOVE")
-                            //Set reacts TV to its original color and state
-                            reactsTV.text = mContext.getString(R.string.react)
-                            reactsTV.setTextColor(
-                                ContextCompat.getColor(mContext, R.color.text_color)
-                            )
-                            //Set owner has emoji to false
-                            ownerHasEmoji = false
-                        } else {
-                            mListener.onReactsClick(height, post, "000")
-                        }
+                        mAdapter.showPostControls(currentPost!!)
                     }
                 }
             }
@@ -386,146 +220,88 @@ class PostsAdapter(
     class PollViewHolder(
         itemView: View,
         adapter: PostsAdapter,
-        listener: OnPostClickListener,
-        onPollItemClicked: PollPostAdapter.OnPollItemClicked,
-        context: Context
     ) :
         RecyclerView.ViewHolder(itemView), View.OnClickListener {
 
-        private val pollRV: RecyclerView = itemView.findViewById(R.id.rv_poll_list)
+        private val pollRV: PollRecyclerView = itemView.findViewById(R.id.rv_poll_list)
         private val descTV: TextView = itemView.findViewById(R.id.tv_post_desc)
         private val dateTV: TextView = itemView.findViewById(R.id.tv_post_date)
         private val nameTV: TextView = itemView.findViewById(R.id.tv_post_owner)
         private val ownerIV: ImageView = itemView.findViewById(R.id.iv_post_owner)
         private val postMenuIV: ImageView = itemView.findViewById(R.id.iv_post_menu)
-        private val reactsTV: TextView = itemView.findViewById(R.id.tv_post_react)
-
-        private val mListener = listener //PostsAdapter OnClickListener
-        private val mAdapter = adapter //Posts Adapter
-        private val mPollItemListener = onPollItemClicked //PollItemsAdapter OnClickListener
-        private val mContext = context
-        private val mReactsList = adapter.reactsList
-        private val mCurrentUserId = adapter.currentUserId
+        private val reactsTV: ReactsButton = itemView.findViewById(R.id.tv_post_react)
         private val commentTV: TextView = itemView.findViewById(R.id.tv_post_comment)
+        private val postIV: ImageView = itemView.findViewById(R.id.iv_post_image)
 
-        private var selectedItem: Poll? = null
+        private val mAdapter = adapter //Posts Adapter
 
         private lateinit var pollItemsAdapter: PollPostAdapter
-        private lateinit var post: PollPost
-        private var ownerHasEmoji = false
+        private var currentPost: Post? = null
 
         init {
-            pollRV.addItemDecoration(LinearSpacingItemDecorator(20))
-            pollRV.layoutManager = LinearLayoutManager(mContext)
-            (pollRV.itemAnimator as SimpleItemAnimator).supportsChangeAnimations = false
-            reactsTV.setOnClickListener(this)
             commentTV.setOnClickListener(this)
             postMenuIV.setOnClickListener(this)
-            nameTV.setOnClickListener(this)
-            ownerIV.setOnClickListener(this)
-
-            reactsTV.text = mContext.getString(R.string.react)
-            reactsTV.setTextColor(
-                ContextCompat.getColor(mContext, R.color.text_color)
-            )
         }
 
-        fun bind(post: PollPost) {
-            reactsTV.text = mContext.getText(R.string.react)
+        fun bind(post: Post, react: UserSelection?) {
+            if (currentPost == null || currentPost != post) {
+                currentPost = post
 
-            for (react in mReactsList) {
-                if (react.reactOwner == mCurrentUserId && !ownerHasEmoji) {
-                    when (react.react) {
-                        mContext.getString(R.string.emoji_1) -> {
-                            reactsTV.text = mContext.getString(R.string.haha)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.yellow))
-                        }
-                        mContext.getString(R.string.emoji_2) -> {
-                            reactsTV.text = mContext.getString(R.string.sad)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.yellow))
-                        }
-                        mContext.getString(R.string.emoji_3) -> {
-                            reactsTV.text = mContext.getString(R.string.angry)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.orange))
-                        }
-                        mContext.getString(R.string.emoji_4) -> {
-                            reactsTV.text = mContext.getString(R.string.wow)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.yellow))
-                        }
-                        mContext.getString(R.string.emoji_5) -> {
-                            reactsTV.text = mContext.getString(R.string.love)
-                            reactsTV.setTextColor(ContextCompat.getColor(mContext, R.color.red))
-                        }
-                    }
-                    //Set owner has emoji = true
-                    ownerHasEmoji = true
+                if (post.ownerID != mAdapter.currentUserId) {
+                    postMenuIV.visibility = GONE
                 } else {
-                    break
+                    postMenuIV.visibility = VISIBLE
                 }
-            }
 
-            this.post = post
-            pollItemsAdapter =
-                PollPostAdapter(post.pollItems!!, mCurrentUserId, post, mPollItemListener)
-            pollRV.adapter = pollItemsAdapter
+                reactsTV.setArgs(
+                    post.postId,
+                    mAdapter.createReact,
+                    mAdapter.deleteReact
+                )
 
-            descTV.text = post.description
-            val sdf = SimpleDateFormat("EEE, d, MMM, HH:mm:ss", Locale.ENGLISH)
-            val date = post.postDate
-            dateTV.text = sdf.format(date!!)
-            val owner: Users? = mAdapter.getCertainPostOwner(post.ownerID!!)
-            if (owner != null) {
-                nameTV.text = owner.Name
-                Glide.with(ownerIV).load(owner.ImageLink).into(ownerIV)
+                val pollDataList =
+                    mAdapter.pollDataList.firstOrNull { it.postId == post.postId }?.pollItemData
+
+                pollRV.setAdapter(
+                    mAdapter.usersList,
+                    pollDataList,
+                    post,
+                    mAdapter.pollItemSelect,
+                    mAdapter.enlargeImage
+                )
+
+                if (react != null) {
+                    reactsTV.text = react.userChoice
+                }
+                descTV.text = post.description
+                val date = post.postDate
+                dateTV.text = mAdapter.sdf.format(date!!)
+                val owner: UserData? = mAdapter.getPostOwner(post.ownerID)
+                if (owner != null) {
+                    nameTV.text = owner.name
+
+                    if (owner.imageLink.isNotEmpty()) {
+                        Glide.with(ownerIV).load(owner.imageLink).into(ownerIV)
+                    }
+                }
             }
         }
 
         //View.OnClick for
         override fun onClick(p0: View?) {
-            val post = mAdapter.getPostByPosition(adapterPosition)
-            if (post is PollPost) {
+            if (currentPost != null) {
                 when (p0) {
                     //When user click on comments TV interface sends post ID and opens comments fragment from user fragment
                     commentTV -> {
-                        mListener.onCommentClick(post.id!!)
+                        mAdapter.showComments(currentPost!!.postId)
                     }
+
                     //When user click on menu IV interface sends post item and opens settings from user fragment
                     postMenuIV -> {
-                        mListener.onPostClick(post)
-                    }
-                    //When user click on post owner IV or TV interface sends owner id and goes to that user profile
-                    nameTV, ownerIV -> {
-                        val owner: Users? = mAdapter.getCertainPostOwner(post.ownerID!!)
-                        mListener.onPostOwnerClick(owner!!)
-                    }
-                    reactsTV -> {
-                        val height = itemView.bottom - reactsTV.height
-                        if (ownerHasEmoji) {
-                            //Call fragment fun to remove react
-                            mListener.onReactsClick(height, post, "REMOVE")
-                            //Set reacts TV to its original color and state
-                            reactsTV.text = mContext.getString(R.string.react)
-                            reactsTV.setTextColor(
-                                ContextCompat.getColor(mContext, R.color.text_color)
-                            )
-                            //Set owner has emoji to false
-                            ownerHasEmoji = false
-                        } else {
-                            mListener.onReactsClick(height, post, "000")
-                        }
+                        mAdapter.showPostControls(currentPost!!)
                     }
                 }
             }
         }
-    }
-
-    interface OnPostClickListener {
-        fun onPostClick(post: Any)
-
-        fun onCommentClick(postID: String)
-
-        fun onReactsClick(height: Int, post: Any, case: String)
-
-        fun onPostOwnerClick(postOwner: Users)
     }
 }

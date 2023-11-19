@@ -5,113 +5,22 @@
     android:layout_height="match_parent"
     android:background="@color/fragment_bg">
 
-    <LinearLayout
-        android:id="@+id/linearLayout"
-        android:layout_width="wrap_content"
+    <include
+        android:id="@+id/layout_otp"
+        layout="@layout/layout_otp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="5dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/btn_verify"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.3">
-
-        <EditText
-            android:id="@+id/et_otp_1"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
-            android:layout_marginEnd="5dp"
-            android:background="@drawable/custom_input"
-            android:gravity="center"
-            android:hint="@string/zero"
-            android:inputType="number"
-            android:maxLength="1"
-            android:nextFocusRight="@id/et_otp_2"
-            android:textColor="@color/text_color"
-            android:textColorHint="@color/text_hint"
-            android:textSize="40sp" />
-
-        <EditText
-            android:id="@+id/et_otp_2"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
-            android:layout_marginEnd="5dp"
-            android:background="@drawable/custom_input"
-            android:gravity="center"
-            android:hint="@string/zero"
-            android:inputType="number"
-            android:maxLength="1"
-            android:nextFocusRight="@id/et_otp_3"
-            android:textColor="@color/text_color"
-            android:textColorHint="@color/text_hint"
-            android:textSize="40sp" />
-
-        <EditText
-            android:id="@+id/et_otp_3"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
-            android:layout_marginEnd="5dp"
-            android:background="@drawable/custom_input"
-            android:gravity="center"
-            android:hint="@string/zero"
-            android:inputType="number"
-            android:maxLength="1"
-            android:nextFocusRight="@id/et_otp_4"
-            android:textColor="@color/text_color"
-            android:textColorHint="@color/text_hint"
-            android:textSize="40sp" />
-
-        <EditText
-            android:id="@+id/et_otp_4"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
-            android:layout_marginEnd="5dp"
-            android:background="@drawable/custom_input"
-            android:gravity="center"
-            android:hint="@string/zero"
-            android:inputType="number"
-            android:maxLength="1"
-            android:nextFocusRight="@id/et_otp_5"
-            android:textColor="@color/text_color"
-            android:textColorHint="@color/text_hint"
-            android:textSize="40sp" />
-
-        <EditText
-            android:id="@+id/et_otp_5"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
-            android:layout_marginEnd="5dp"
-            android:background="@drawable/custom_input"
-            android:gravity="center"
-            android:hint="@string/zero"
-            android:inputType="number"
-            android:maxLength="1"
-            android:nextFocusRight="@id/et_otp_6"
-            android:textColor="@color/text_color"
-            android:textColorHint="@color/text_hint"
-            android:textSize="40sp" />
-
-        <EditText
-            android:id="@+id/et_otp_6"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
-            android:background="@drawable/custom_input"
-            android:gravity="center"
-            android:hint="@string/zero"
-            android:inputType="number"
-            android:maxLength="1"
-            android:textColor="@color/text_color"
-            android:textColorHint="@color/text_hint"
-            android:textSize="40sp" />
-
-    </LinearLayout>
+        app:layout_constraintVertical_bias="0.9" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_verify"
         android:layout_width="wrap_content"
         android:layout_height="50dp"
-        android:background="@drawable/round_corners"
+        android:background="@drawable/round_corners_15dp"
         android:backgroundTint="@color/btn_color"
         android:text="@string/verify"
         android:textAllCaps="false"
@@ -119,10 +28,8 @@
         android:textSize="20sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.45" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/tv_verification_timer"
@@ -136,7 +43,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/cb_keep_logged_in"
         app:layout_constraintVertical_bias="0.8" />
 
     <CheckBox
@@ -150,9 +57,8 @@
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.569" />
+        app:layout_constraintTop_toBottomOf="@+id/btn_verify"
+        app:layout_constraintVertical_bias="0.1" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

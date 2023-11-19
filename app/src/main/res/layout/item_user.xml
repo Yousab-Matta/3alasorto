@@ -2,7 +2,6 @@
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/cv_user_item"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:backgroundTint="@android:color/transparent"
@@ -13,11 +12,11 @@
         android:layout_height="wrap_content">
 
         <RelativeLayout
-            android:id="@+id/rl_user_item"
+            android:id="@+id/cl_user_item"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="25dp"
-            android:background="@drawable/round_corners"
+            android:background="@drawable/round_corners_15dp"
             android:backgroundTint="@color/primary_color"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -35,12 +34,11 @@
                 android:gravity="center_vertical"
                 android:layoutDirection="locale"
                 android:paddingVertical="10dp"
-                android:paddingStart="30dp"
+                android:paddingHorizontal="10dp"
                 android:text="@string/app_name"
                 android:textColor="@color/text_color"
                 android:textSize="25sp"
                 android:textStyle="bold"
-
                 tools:ignore="RtlSymmetry" />
 
         </RelativeLayout>

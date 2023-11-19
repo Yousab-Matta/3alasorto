@@ -52,18 +52,16 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:weightSum="2"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/rl_create_event">
+        app:layout_constraintStart_toStartOf="parent">
 
-        <androidx.appcompat.widget.AppCompatButton
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_create_post"
             android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginVertical="15dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@drawable/round_corners"
+            android:background="@color/primary_color"
             android:gravity="center"
             android:text="@string/post"
             android:textAllCaps="false"
@@ -71,16 +69,16 @@
             android:textSize="20sp"
             android:textStyle="bold"
             app:backgroundTint="@color/btn_color"
-            app:iconGravity="start" />
+            app:icon="@drawable/ic_post"
+            app:iconGravity="textStart"
+            app:iconTint="@color/text_color" />
 
-        <androidx.appcompat.widget.AppCompatButton
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_create_poll"
             android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginVertical="15dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@drawable/round_corners"
+            android:background="@color/primary_color"
             android:gravity="center"
             android:text="@string/poll"
             android:textAllCaps="false"
@@ -88,18 +86,19 @@
             android:textSize="20sp"
             android:textStyle="bold"
             app:backgroundTint="@color/btn_color"
-            app:iconGravity="start" />
+            app:icon="@drawable/ic_poll"
+            app:iconGravity="textStart"
+            app:iconTint="@color/text_color" />
 
     </LinearLayout>
-
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/create_post_pager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/ll_post_type_select"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/ll_post_type_select" />
+        app:layout_constraintTop_toBottomOf="@+id/rl_create_event" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -2,176 +2,160 @@ package com.example.alasorto
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.app.Dialog
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.InsetDrawable
-import android.os.Build
 import android.os.Bundle
-import android.os.Parcelable
-import android.util.DisplayMetrics
 import android.view.*
-import android.view.View.OnClickListener
-import android.view.animation.Animation
-import android.view.animation.AnimationUtils
+import android.view.View.*
 import android.widget.*
-import androidx.cardview.widget.CardView
-import androidx.core.widget.NestedScrollView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.SimpleItemAnimator
+import androidx.recyclerview.widget.*
 import com.bumptech.glide.Glide
-import com.example.alasorto.adapters.PollPostAdapter
+import com.example.alasorto.adapters.PostMediaAdapter
 import com.example.alasorto.adapters.PostsAdapter
 import com.example.alasorto.dataClass.*
-import com.example.alasorto.utils.InternetCheck
-import com.example.alasorto.utils.LinearSpacingItemDecorator
-import com.example.alasorto.utils.UpdatePostsList
+import com.example.alasorto.offlineUserDatabase.OfflineUserViewModel
+import com.example.alasorto.utils.*
+import com.example.alasorto.viewModels.AppViewModel
+import com.example.alasorto.viewModels.PostsViewModel
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import java.util.*
+import kotlin.concurrent.thread
 
 @Suppress("UNCHECKED_CAST")
-class HomeFragment : Fragment(), PostsAdapter.OnPostClickListener,
-    PollPostAdapter.OnPollItemClicked,
+class HomeFragment : Fragment(R.layout.fragment_home),
     PostsBottomSheet.OnPostSettingsItemClick {
-    private var postsList = ArrayList<Any>()
-    private val allUsersList = ArrayList<Users>()
-    private val reactsList = ArrayList<PostReact>()
+    private val currentUserId = FirebaseAuth.getInstance().currentUser!!.phoneNumber!!
     private val dialog = PostsBottomSheet(this)
-    private val viewModel: AppViewModel by viewModels()
+    private val postsViewModel: PostsViewModel by viewModels()
+    private val appViewModel: AppViewModel by viewModels()
+    private val offlineUserViewModel: OfflineUserViewModel by viewModels()
 
-    private val openEmojiAnim: Animation by lazy {
-        AnimationUtils.loadAnimation(
-            requireContext(),
-            R.anim.emoji_in
-        )
-    }
+    //Used to check if this user is already updated from database so we don't fetch this user again
+    private val usersIdsList = ArrayList<String>()
 
-    private val closeEmojiAnim: Animation by lazy {
-        AnimationUtils.loadAnimation(
-            requireContext(),
-            R.anim.emoji_out
-        )
-    }
+    private var postsList = ArrayList<Post>()
+    private var selectedPost: Post? = null
+    private var currentUser: UserData? = null
+    private var hasConnection = false
 
-    private lateinit var postsRV: RecyclerView
+    private lateinit var mActivity: MainActivity
+    private lateinit var recyclerView: RecyclerView
     private lateinit var addPostBtn: ImageButton
     private lateinit var userImageIV: ImageView
-    private lateinit var reactsLayout: CardView
-    private lateinit var scrollView: NestedScrollView
     private lateinit var postsAdapter: PostsAdapter
+    private lateinit var postsMediaAdapter: PostMediaAdapter
     private lateinit var internetCheck: InternetCheck
-    private lateinit var reactsDialog: Dialog
 
-    //Reacts
-    private lateinit var emoji1TV: TextView
-    private lateinit var emoji2TV: TextView
-    private lateinit var emoji3TV: TextView
-    private lateinit var emoji4TV: TextView
-    private lateinit var emoji5TV: TextView
-
-    private var selectedPost: Any? = null
-    private var viewHeight: Int = 0
-    private var currentUser: Users? = null
-    private var hasConnection = false
-    private var loaded = false
-
-    @SuppressLint("NotifyDataSetChanged")
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        return layoutInflater.inflate(R.layout.fragment_home, container, false)
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
+    @SuppressLint("NotifyDataSetChanged", "ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         view.isClickable = true
 
-        //Get view height for comments bottom sheet fragment
-        val displayMetrics = DisplayMetrics()
-        viewHeight = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            requireActivity().windowManager.maximumWindowMetrics.bounds.height()
-            displayMetrics.heightPixels
-        } else {
-            @Suppress("DEPRECATION")
-            requireActivity().windowManager.defaultDisplay.getMetrics(displayMetrics)
-            displayMetrics.heightPixels
-        }
-
         //Check internet connection
         internetCheck = InternetCheck(requireActivity().application)
         internetCheck.observe(this.viewLifecycleOwner) {
             hasConnection = it
-            if (it) {
-                //If there is connection get all posts
-                viewModel.getPosts()
-                viewModel.getVideoPost()
-                viewModel.getPolls()
+            if (it && postsList.size == 0) {
+                postsViewModel.getPosts()
             }
         }
-
-        //Get current user data
-        currentUser = (activity as MainActivity).getCurrentUser()
-
-        //Get all users
-        allUsersList.addAll((activity as MainActivity).getAllUsers())
 
         initViews(view)
         initRecyclerView()
 
-        //set user image to imageView
-        Glide.with(requireContext()).load(currentUser!!.ImageLink.toString())
-            .into(userImageIV)
+        mActivity = activity as MainActivity
+
+        offlineUserViewModel.getUserById(currentUserId)
+        offlineUserViewModel.userById.observe(this.viewLifecycleOwner, Observer {
+            if (it != null) {
+                currentUser = it.user
+                setUserData()
+            } else {
+                currentUser = mActivity.getCurrentUser()
+                if (currentUser != null) {
+                    setUserData()
+                } else {
+                    appViewModel.getCurrentUser()
+                }
+            }
+        })
+
+        appViewModel.currentUserMLD.observe(this.viewLifecycleOwner, Observer {
+            if (it != null) {
+                if (currentUser != null) {
+                    currentUser = it
+                    setUserData()
+                }
+            }
+        })
+
+        //User by Id Observer
+        appViewModel.userByIdMLD.observe(this.viewLifecycleOwner, Observer {
+            if (it != null) {
+                postsAdapter.updateUsersList(it)
+                usersIdsList.add(it.phone)
+
+                if (it.phone == currentUserId && currentUser == null) {
+                    currentUser = it
+                    setUserData()
+                }
+            }
+        })
 
         //Posts observer
-        viewModel.postsMLD.observe(this.viewLifecycleOwner, Observer {
+        postsViewModel.postMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
-                //For loop to get only reacts for current posts
                 for (post in it) {
-                    viewModel.getReacts(post.id!!)
+                    if (!postsList.any { it1 -> it1.postId == post.postId }) {
+                        postsList.add(post)
+                        postsList.sortByDescending { it1 -> it1.postDate }
+                        postsAdapter.notifyItemInserted(postsList.size - 1)
+                    }
+
+                    thread {
+                        if (!usersIdsList.contains(post.ownerID)) {
+                            appViewModel.getUserById(post.ownerID)
+                        }
+                    }
+                    thread {
+                        postsViewModel.getReacts(post.postId)
+                    }
+
+                    thread {
+                        postsViewModel.getPollData(post.postId)
+                    }
                 }
-                //Fun used to sort all posts array
-                val postsArray = UpdatePostsList(postsList, it, postsAdapter).handlePostsList()
-                postsList = postsArray
             }
         })
 
-        //Video Posts observer
-        viewModel.videoPostsMLD.observe(this.viewLifecycleOwner, Observer {
+        postsViewModel.pollDataMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
-                for (post in it) {
-                    viewModel.getReacts(post.id)
-                }
-                val postsArray = UpdatePostsList(postsList, it, postsAdapter).handleVideoPostsList()
-                postsList = postsArray
-            }
-        })
+                postsAdapter.updatePollData(it)
 
-        //Poll posts observer
-        viewModel.pollsMLD.observe(this.viewLifecycleOwner, Observer {
-            if (it != null) {
-                for (post in it) {
-                    viewModel.getReacts(post.id!!)
+                if (it.pollItemData != null) {
+                    for (pollItem in it.pollItemData!!) {
+                        appViewModel.getUserById(pollItem.userId!!)
+                    }
                 }
-                val postsArray = UpdatePostsList(postsList, it, postsAdapter).handlePollsList()
-                postsList = postsArray
             }
         })
 
         //Reacts observer
-        viewModel.reactMLD.observe(this.viewLifecycleOwner, Observer {
-            for (react in it) {
-                if (!reactsList.contains(react)) {
-                    reactsList.add(react)
-                    postsAdapter.notifyDataSetChanged()
-                }
+        postsViewModel.reactMLD.observe(this.viewLifecycleOwner, Observer {
+            if (it != null) {
+                postsAdapter.updateReacts(it)
+            }
+        })
+
+        postsViewModel.failedEventMLD.observe(this.viewLifecycleOwner, Observer {
+            if (it) {
+                Toast.makeText(requireContext(), R.string.error_has_occured, Toast.LENGTH_SHORT)
+                    .show()
             }
         })
 
@@ -183,30 +167,20 @@ class HomeFragment : Fragment(), PostsAdapter.OnPostClickListener,
 
         userImageIV.setOnClickListener(View.OnClickListener
         {
-            goToProfileFragment(currentUser!!)
+            goToProfileFragment()
         })
 
+        currentUser = mActivity.getCurrentUser()
+        setUserData()
+    }
+
+    override fun onResume() {
+        super.onResume()
         //Check changes in posts
         Firebase.firestore.collection("Posts").addSnapshotListener()
         { _, _ ->
             if (hasConnection) {
-                viewModel.getPosts()
-            }
-        }
-
-        //Check changes in video posts
-        Firebase.firestore.collection("VideoPosts").addSnapshotListener()
-        { _, _ ->
-            if (hasConnection) {
-                viewModel.getVideoPost()
-            }
-        }
-
-        //Check changes in polls
-        Firebase.firestore.collection("Polls").addSnapshotListener()
-        { _, _ ->
-            if (hasConnection) {
-                viewModel.getPolls()
+                postsViewModel.getPosts()
             }
         }
 
@@ -215,20 +189,33 @@ class HomeFragment : Fragment(), PostsAdapter.OnPostClickListener,
         { _, _ ->
             if (hasConnection) {
                 for (post in postsList) {
-                    when (post) {
-                        is Posts -> {
-                            viewModel.getReacts(post.id!!)
-                        }
-                        is PollPost -> {
-                            viewModel.getReacts(post.id!!)
-                        }
-                        is VideoPost -> {
-                            viewModel.getReacts(post.id)
-                        }
-                    }
+                    postsViewModel.getReacts(post.postId)
                 }
             }
         }
+
+        //Check changes in pollData
+        Firebase.firestore.collection("PollItemData").addSnapshotListener()
+        { _, _ ->
+            if (hasConnection) {
+                for (post in postsList) {
+                    postsViewModel.getPollData(post.postId)
+                }
+            }
+        }
+    }
+
+    private fun showPostControls(post: Post) {
+        selectedPost = post
+        dialog.show(requireActivity().supportFragmentManager, "POSTS_BOTTOM_SHEETS")
+    }
+
+    private fun showComments(postID: String) {
+        val commentsFragment = CommentsBottomFragment(postID)
+        commentsFragment.show(
+            requireActivity().supportFragmentManager,
+            "COMMENTS_BOTTOM_SHEETS"
+        )
     }
 
     private fun goToCreatePostFragment() {
@@ -243,74 +230,50 @@ class HomeFragment : Fragment(), PostsAdapter.OnPostClickListener,
         transaction.commit()
     }
 
+    private fun goToProfileFragment() {
+        val fragment = UserProfileFragment()
+        val manager = requireActivity().supportFragmentManager
+        val transaction = manager.beginTransaction()
+        transaction.add(R.id.main_frame, fragment)
+        transaction.addToBackStack("USER_PROFILE_FRAGMENT")
+        transaction.commit()
+    }
+
     private fun initRecyclerView() {
         //Set linear layout manager to recyclerView
-        postsRV.layoutManager = LinearLayoutManager(context)
-        postsRV.addItemDecoration(LinearSpacingItemDecorator(20))
-        //Disable animations
-        (postsRV.itemAnimator as SimpleItemAnimator).supportsChangeAnimations = false
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        recyclerView.addItemDecoration(LinearSpacingItemDecorator(30))
 
         //Initialize adapter and set it to recyclerview
         postsAdapter = PostsAdapter(
-            postsList, allUsersList, reactsList, this,
-            this, currentUser!!.Phone!!, requireContext()
+            postsList,
+            ::showComments,
+            ::showPostControls,
+            ::onPollItemClicked,
+            ::expandMedia,
+            ::expandImage,
+            ::createReact,
+            ::deleteReact
         )
-        postsRV.adapter = postsAdapter
+
+        postsAdapter.setHasStableIds(true)
+        recyclerView.adapter = postsAdapter
     }
 
-    override fun onPostClick(post: Any) {
-        selectedPost = post
-        dialog.show(requireActivity().supportFragmentManager, "POSTS_BOTTOM_SHEETS")
-    }
-
-    override fun onCommentClick(postID: String) {
-        showComments(postID)
-    }
-
-    override fun onReactsClick(height: Int, post: Any, case: String) {
-        selectedPost = post
-        if (case == "REMOVE") {
-            when (post) {
-                is Posts -> {
-                    viewModel.deleteReact(currentUser!!.Phone!!, post.id!!)
-                }
-                is PollPost -> {
-                    viewModel.deleteReact(currentUser!!.Phone!!, post.id!!)
-                }
-                is VideoPost -> {
-                    viewModel.deleteReact(currentUser!!.Phone!!, post.id)
-                }
-            }
-        } else {
-            showDialog()
+    private fun onPollItemClicked(pollPost: Post, pollItemId: String) {
+        if (Firebase.auth.currentUser != null && Firebase.auth.currentUser!!.phoneNumber != null) {
+            val userSelection =
+                UserSelection(Firebase.auth.currentUser!!.phoneNumber, pollItemId)
+            postsViewModel.editPollChoice(
+                userSelection,
+                pollPost,
+            )
         }
-    }
-
-    override fun onPostOwnerClick(postOwner: Users) {
-        goToProfileFragment(postOwner)
-    }
-
-    override fun onPollItemClicked(pollPost: PollPost, pollItem: Poll) {
-        viewModel.editPollChoice(
-            pollPost,
-            pollItem,
-            currentUser!!.Phone.toString()
-        )
     }
 
     override fun onPostSettingsClick(case: String) {
         if (case == "Edit") {
-            when (selectedPost) {
-                is Posts -> {
-                    editPost()
-                }
-                is PollPost -> {
-                    editPollPost()
-                }
-                is VideoPost -> {
-                    editVideoPollPost()
-                }
-            }
+            editPost()
         } else if (case == "Delete") {
             deletePost()
         }
@@ -318,18 +281,9 @@ class HomeFragment : Fragment(), PostsAdapter.OnPostClickListener,
 
     private fun initViews(view: View) {
         //Initialize views
-        scrollView = view.findViewById(R.id.sv_home)
-        postsRV = view.findViewById(R.id.rv_admin_posts)
         userImageIV = view.findViewById(R.id.iv_home_user)
+        recyclerView = view.findViewById(R.id.rv_admin_posts)
         addPostBtn = view.findViewById(R.id.btn_add_admin_post)
-    }
-
-    private fun showComments(postID: String) {
-        val commentsFragment = CommentsBottomFragment(postID, viewHeight)
-        commentsFragment.show(
-            requireActivity().supportFragmentManager,
-            "COMMENTS_BOTTOM_SHEETS"
-        )
     }
 
     private fun deletePost() {
@@ -339,19 +293,13 @@ class HomeFragment : Fragment(), PostsAdapter.OnPostClickListener,
         builder.setMessage(R.string.delete_post_confirmation)
         builder.setPositiveButton(R.string.yes) { _, _ ->
             if (hasConnection) {
-                when (selectedPost) {
-                    is Posts -> {
-                        viewModel.deletePost((selectedPost as Posts).id!!)
-                    }
-                    is PollPost -> {
-                        viewModel.deletePollPost((selectedPost as PollPost).id!!)
-                    }
-                    is VideoPost -> {
-                        viewModel.deleteVideoPost((selectedPost as VideoPost).id)
-                    }
-                }
+                postsViewModel.deletePost(selectedPost!!.postId)
             } else {
-                Toast.makeText(requireContext(), R.string.check_connection, Toast.LENGTH_SHORT)
+                Toast.makeText(
+                    requireContext(),
+                    R.string.check_connection,
+                    Toast.LENGTH_SHORT
+                )
                     .show()
             }
         }
@@ -365,7 +313,7 @@ class HomeFragment : Fragment(), PostsAdapter.OnPostClickListener,
         val manager = requireActivity().supportFragmentManager
         val transaction = manager.beginTransaction()
         val bundle = Bundle()
-        bundle.putParcelable("EDITING_POST", selectedPost as Posts)
+        bundle.putParcelable("EDITING_POST", selectedPost)
         bundle.putBoolean("IsNewPost", false)
         fragment.arguments = bundle
         transaction.add(R.id.main_frame, fragment)
@@ -374,163 +322,44 @@ class HomeFragment : Fragment(), PostsAdapter.OnPostClickListener,
         dialog.dismiss()
     }
 
-    private fun editPollPost() {
-        val fragment = CreatePostFragment()
-        val manager = requireActivity().supportFragmentManager
-        val transaction = manager.beginTransaction()
-        val bundle = Bundle()
-        bundle.putParcelable("EDITING_POLL_POST", selectedPost as PollPost)
-        bundle.putBoolean("IsNewPost", false)
-        fragment.arguments = bundle
-        transaction.add(R.id.main_frame, fragment)
-        transaction.addToBackStack("HANDLE_POSTS_FRAGMENT")
-        transaction.commit()
-        dialog.dismiss()
+    @SuppressLint("NotifyDataSetChanged")
+    private fun expandMedia(mediaList: ArrayList<MediaData>?, clickedItemIndex: Int) {
+        val args = Bundle()
+        args.putParcelableArrayList("MEDIA_LIST", mediaList)
+        args.putInt("CLICKED_ITEM_INDEX", clickedItemIndex)
+        mActivity.goToEnlargeMediaFragment(args)
     }
 
-    private fun editVideoPollPost() {
-        val fragment = CreatePostFragment()
-        val manager = requireActivity().supportFragmentManager
-        val transaction = manager.beginTransaction()
-        val bundle = Bundle()
-        bundle.putParcelable("EDITING_VIDEO_POST", selectedPost as VideoPost)
-        bundle.putBoolean("IsNewPost", false)
-        fragment.arguments = bundle
-        transaction.add(R.id.main_frame, fragment)
-        transaction.addToBackStack("HANDLE_POSTS_FRAGMENT")
-        transaction.commit()
-        dialog.dismiss()
+    private fun expandImage(imageLink: String) {
+        val args = Bundle()
+        args.putString("IMAGE_LINK", imageLink)
+        mActivity.goToEnlargeMediaFragment(args)
     }
 
-    private fun goToProfileFragment(user: Users?) {
-        if (user != null) {
-            val profilePostsList = ArrayList<Any>()
-            for (post in postsList) {
-                if (post is Posts) {
-                    if (post.ownerID == user.Phone) {
-                        profilePostsList.add(post)
-                    }
-                }
-                if (post is PollPost) {
-                    if (post.ownerID == user.Phone) {
-                        profilePostsList.add(post)
-                    }
-                }
+    private fun expandVideo(videoLink: String) {
+        val args = Bundle()
+        args.putString("VIDEO_LINK", videoLink)
+        mActivity.goToEnlargeMediaFragment(args)
+    }
+
+    private fun createReact(userSelection: UserSelection, postID: String) {
+        postsViewModel.createReact(userSelection, postID)
+    }
+
+    private fun deleteReact(userSelection: UserSelection, postID: String) {
+        postsViewModel.deleteReact(userSelection, postID)
+    }
+
+    private fun setUserData() {
+        if (currentUser != null) {
+            //set user image to imageView
+            if (currentUser!!.imageLink.isNotEmpty()) {
+                Glide.with(requireContext()).load(currentUser!!.imageLink)
+                    .into(userImageIV)
+            } else {
+                Glide.with(requireContext()).load(R.drawable.image_logo)
+                    .into(userImageIV)
             }
-
-            val manager = requireActivity().supportFragmentManager
-            val transaction = manager.beginTransaction()
-            val fragment = ProfileFragment()
-            val args = Bundle()
-            args.putParcelable("Profile_User", user)
-            args.putParcelableArrayList(
-                "Profile_Posts",
-                profilePostsList as ArrayList<out Parcelable>
-            )
-            fragment.arguments = args
-            transaction.add(R.id.main_frame, fragment)
-            transaction.addToBackStack("PROFILE_FRAGMENT")
-            transaction.commit()
         }
     }
-
-    private fun showDialog() {
-        //Create another dialogue to get number of points
-        reactsDialog = Dialog(requireContext())
-        reactsDialog.setCancelable(true)
-        reactsDialog.setContentView(R.layout.layout_reacts)
-
-        val onClickListener = OnClickListener(object : OnClickListener, (View) -> Unit {
-            override fun onClick(p0: View?) {
-                when (selectedPost) {
-                    is Posts -> {
-                        viewModel.createReact(
-                            (selectedPost as Posts).id!!,
-                            currentUser!!.Phone!!,
-                            (p0 as TextView).text as String
-                        )
-                    }
-                    is PollPost -> {
-                        viewModel.createReact(
-                            (selectedPost as PollPost).id!!,
-                            currentUser!!.Phone!!,
-                            (p0 as TextView).text as String
-                        )
-                    }
-                    is VideoPost -> {
-                        viewModel.createReact(
-                            (selectedPost as VideoPost).id,
-                            currentUser!!.Phone!!,
-                            (p0 as TextView).text as String
-                        )
-                    }
-                }
-                reactsDialog.dismiss()
-            }
-
-            override fun invoke(p1: View) {
-                when (selectedPost) {
-                    is Posts -> {
-                        viewModel.createReact(
-                            (selectedPost as Posts).id!!,
-                            currentUser!!.Phone!!,
-                            (p1 as TextView).text as String
-                        )
-                    }
-                    is PollPost -> {
-                        viewModel.createReact(
-                            (selectedPost as PollPost).id!!,
-                            currentUser!!.Phone!!,
-                            (p1 as TextView).text as String
-                        )
-                    }
-                    is VideoPost -> {
-                        viewModel.createReact(
-                            (selectedPost as VideoPost).id,
-                            currentUser!!.Phone!!,
-                            (p1 as TextView).text as String
-                        )
-                    }
-                }
-                reactsDialog.dismiss()
-            }
-        })
-
-        //Init emojis
-        emoji1TV = reactsDialog.findViewById(R.id.tv_emoji_1)
-        emoji2TV = reactsDialog.findViewById(R.id.tv_emoji_2)
-        emoji3TV = reactsDialog.findViewById(R.id.tv_emoji_3)
-        emoji4TV = reactsDialog.findViewById(R.id.tv_emoji_4)
-        emoji5TV = reactsDialog.findViewById(R.id.tv_emoji_5)
-
-        //Start emoji animation
-        emoji1TV.startAnimation(openEmojiAnim)
-        emoji2TV.startAnimation(openEmojiAnim)
-        emoji3TV.startAnimation(openEmojiAnim)
-        emoji4TV.startAnimation(openEmojiAnim)
-        emoji5TV.startAnimation(openEmojiAnim)
-
-        //SetEmoji onClickListeners
-        emoji1TV.setOnClickListener(onClickListener)
-        emoji2TV.setOnClickListener(onClickListener)
-        emoji3TV.setOnClickListener(onClickListener)
-        emoji4TV.setOnClickListener(onClickListener)
-        emoji5TV.setOnClickListener(onClickListener)
-
-        val window = reactsDialog.window
-        window!!.setLayout(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT
-        )
-
-        window.setBackgroundDrawable(
-            InsetDrawable(
-                ColorDrawable(Color.TRANSPARENT),
-                30
-            )
-        )
-
-        reactsDialog.show()
-    }
-
 }

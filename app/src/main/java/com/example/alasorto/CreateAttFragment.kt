@@ -1,68 +1,64 @@
 package com.example.alasorto
 
 import android.annotation.SuppressLint
-import android.app.AlertDialog
+import android.app.Dialog
+import android.os.Build
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.view.Window
+import android.view.*
 import android.widget.ImageButton
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.alasorto.adapters.AttAllUsersAdapter
-import com.example.alasorto.dataClass.Users
+import com.example.alasorto.dataClass.Attendance
+import com.example.alasorto.dataClass.UserData
+import com.example.alasorto.pendingAttendanceDatabase.PendingAttendance
+import com.example.alasorto.pendingAttendanceDatabase.PendingAttendanceViewModel
+import com.example.alasorto.utils.DateUtils
 import com.example.alasorto.utils.InternetCheck
 import com.example.alasorto.utils.LinearSpacingItemDecorator
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
+import com.example.alasorto.viewModels.AppViewModel
+import java.util.*
+import kotlin.collections.ArrayList
 
-class CreateAttFragment : Fragment(), AttAllUsersAdapter.OnClickListener {
-    private val auth = Firebase.auth
-    private val authUser = auth.currentUser
-    private val phoneNum = authUser?.phoneNumber
+class CreateAttFragment : Fragment(R.layout.fragment_create_att),
+    AttAllUsersAdapter.OnClickListener {
+    //Array List of and each changes when user moves to or from users list
+    private val attUsersList = ArrayList<UserData>()
+    private val attendedUsersIds = ArrayList<String>()
 
-    private lateinit var searchView: androidx.appcompat.widget.SearchView
-    private lateinit var saveAttendanceBtn: ImageButton
-    private lateinit var usersRV: RecyclerView
-
-    private lateinit var viewModel: AppViewModel
+    private val viewModel: AppViewModel by viewModels()
+    private val pendingAttendanceViewModel: PendingAttendanceViewModel by viewModels()
 
     //Array List of all users and each changes when user moves to or from att list
-    private var allUsersList = ArrayList<Users>()
+    private var allUsersList = ArrayList<UserData>()
     private var allUsersIds = ArrayList<String>()
+    private var hasConnection = false
+    private var editingAttendance: Attendance? = null //Attendance that is being edit
+    private var allUsersFilteredList = ArrayList<UserData>()
 
-    //Array List of and each changes when user moves to or from users list
-    private val attUsersList = ArrayList<Users>()
+    //Array lists for editing attendance only
+    private val oldUsersList = ArrayList<String>()
 
-    private val attendedUsersIds = ArrayList<String>()
-    private val attendedUsersNames = ArrayList<String>()
-
-    //Progress Dialog stuff
-    private lateinit var builder: AlertDialog.Builder
-    private lateinit var dialog: AlertDialog
-    private lateinit var window: Window
+    private lateinit var searchView: androidx.appcompat.widget.SearchView
+    private lateinit var attAllUsersAdapter: AttAllUsersAdapter
+    private lateinit var saveAttendanceBtn: ImageButton
+    private lateinit var usersRV: RecyclerView
+    private lateinit var pointsDialog: Dialog
 
     //Internet connection
     private lateinit var internetCheck: InternetCheck
-    private var hasConnection = false
-
-    private lateinit var attAllUsersAdapter: AttAllUsersAdapter
-    private var allUsersFilteredList = ArrayList<Users>()
-    private var totalAtt = -1
 
     @SuppressLint("NotifyDataSetChanged")
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View? {
-        //Initialize view
-        val view = inflater.inflate(R.layout.fragment_create_att, container, false)
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
         view.isClickable = true
 
         //Initialize widgets
@@ -70,20 +66,37 @@ class CreateAttFragment : Fragment(), AttAllUsersAdapter.OnClickListener {
         saveAttendanceBtn = view.findViewById(R.id.btn_save_attendance)
         usersRV = view.findViewById(R.id.rv_att_all_users)
 
-        //Create Alert Dialogue
-        builder = AlertDialog.Builder(context)
-        builder.setCancelable(false)
-        builder.setView(R.layout.progress_dialogue)
-        dialog = builder.create()
-        window = dialog.window!!
-        window.setBackgroundDrawableResource(android.R.color.transparent)
+        allUsersList.addAll((activity as MainActivity).getAllUsers())
+        allUsersList.sortBy { it.name }
+        for (user in allUsersList) {
+            if (editingAttendance == null) { //If null add all users to the list
+                allUsersIds.add(user.phone)
+            } else { //If not null add only members whose account creation date is before the creation of attendance
+                if (user.creationDate.before(editingAttendance!!.date)) {
+                    allUsersIds.add(user.phone)
+                }
+            }
+        }
+
+        val args = this.arguments
+        if (args != null) {
+            editingAttendance = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                args.getParcelable("EDITING_ATTENDANCE", Attendance::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                args.getParcelable("EDITING_ATTENDANCE")
+            }
+            oldUsersList.addAll(editingAttendance!!.usersIDs!!)
+
+            for (userId in oldUsersList) {
+                val user = allUsersList.first { it.phone.contains(userId) }
+                attUsersList.add(user)
+            }
+        }
 
         //Set RV layout and spacing
         usersRV.layoutManager = LinearLayoutManager(context)
         usersRV.addItemDecoration(LinearSpacingItemDecorator(30))
-
-        //Initialize VM
-        viewModel = ViewModelProvider(this)[AppViewModel::class.java]
 
         //Check internet connection
         internetCheck = InternetCheck(requireActivity().application)
@@ -94,29 +107,14 @@ class CreateAttFragment : Fragment(), AttAllUsersAdapter.OnClickListener {
             }
         }
 
-        allUsersList.addAll((activity as MainActivity).getAllUsers())
-        allUsersList.sortBy { it.Name }
-        for (user in allUsersList) {
-            allUsersIds.add(user.Phone.toString())
-        }
         attAllUsersAdapter =
             AttAllUsersAdapter(allUsersList, attUsersList, this, requireContext())
         usersRV.adapter = attAllUsersAdapter
 
-
-        /*After Creating new Att data app will observe the total attendance times
-        next app will update att % for each user*/
-        viewModel.totalAttNumberMLD.observe(this.viewLifecycleOwner, Observer {
-            totalAtt = it
-            if (hasConnection) {
-                viewModel.handleUserAtt(attendedUsersIds, allUsersIds, totalAtt)
-            }
-        })
-
-        viewModel.clearFragmentMLD.observe(this.viewLifecycleOwner, Observer {
+        viewModel.dismissFragmentMLD.observe(this.viewLifecycleOwner, Observer {
             if (it == true) {
-                dialog.dismiss()
-                Toast.makeText(context, "Attendance was uploaded successfully", Toast.LENGTH_SHORT)
+                (activity as MainActivity).dismissLoadingDialog()
+                Toast.makeText(context, getString(R.string.attendance_uploaded), Toast.LENGTH_SHORT)
                     .show()
                 requireActivity().supportFragmentManager.popBackStack(
                     "CREATE_NEW_ATT_FRAGMENT", FragmentManager.POP_BACK_STACK_INCLUSIVE
@@ -124,19 +122,77 @@ class CreateAttFragment : Fragment(), AttAllUsersAdapter.OnClickListener {
             }
         })
 
+        viewModel.attendanceExistsMLD.observe(this.viewLifecycleOwner, Observer {
+            if (it) {
+                (activity as MainActivity).dismissLoadingDialog()
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.attendance_exists), Toast.LENGTH_SHORT
+                ).show()
+            }
+        })
+
         saveAttendanceBtn.setOnClickListener(View.OnClickListener
         {
+            attendedUsersIds.clear()
+            for (user in attUsersList) {
+                attendedUsersIds.add(user.phone)
+                //requireActivity().createNotification(user.Token!!)
+            }
+
+            val dateUtils = DateUtils()
+
+            val day = dateUtils.getDay()
+            val month = dateUtils.getMonth() + 1
+            val year = dateUtils.getYear()
+
+            val attendance = Attendance(
+                day,
+                month,
+                year,
+                "",
+                dateUtils.getTime(),
+                attendedUsersIds
+            )
+
             if (hasConnection) {
-                dialog.show()
-                attendedUsersIds.clear()
-                for (user in attUsersList) {
-                    attendedUsersIds.add(user.Phone!!)
-                    //requireActivity().createNotification(user.Token!!)
+                (activity as MainActivity).showLoadingDialog()
+                if (editingAttendance == null) {
+                    viewModel.createAttendance(attendance, allUsersIds)
+                } else {
+                    val removedUsersList = ArrayList<String>()
+                    for (userId in oldUsersList) {
+                        if (!attendedUsersIds.contains(userId)) {
+                            removedUsersList.add(userId)
+                        }
+                    }
+
+                    val addedUsersList = ArrayList<String>()
+                    for (userId in attendedUsersIds) {
+                        if (!oldUsersList.contains(userId)) {
+                            addedUsersList.add(userId)
+                        }
+                    }
+                    viewModel.editAttendance(
+                        addedUsersList,
+                        removedUsersList,
+                        attendedUsersIds,
+                        editingAttendance!!.id
+                    )
                 }
-                viewModel.createAttendance(attendedUsersIds)
-                viewModel.getCurrentUser(phoneNum!!)
+                viewModel.getCurrentUser()
                 //requireActivity().createNotification(viewModel.currentUserMLD.value!!.Token.toString())
                 saveAttendanceBtn.isClickable = false
+
+            } else {
+                val pendingAttendanceId = "$day/$month/$year"
+                val pendingAttendance = PendingAttendance(pendingAttendanceId, attendance)
+                pendingAttendanceViewModel.addAttendance(pendingAttendance)
+                Toast.makeText(
+                    requireContext(),
+                    R.string.pending_attendance,
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         })
 
@@ -155,7 +211,10 @@ class CreateAttFragment : Fragment(), AttAllUsersAdapter.OnClickListener {
                     return false
                 }
             })
+    }
 
+    override fun onResume() {
+        super.onResume()
         requireActivity().onBackPressedDispatcher.addCallback(
             this.viewLifecycleOwner, object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
@@ -166,11 +225,9 @@ class CreateAttFragment : Fragment(), AttAllUsersAdapter.OnClickListener {
                     this.isEnabled = false
                 }
             })
-
-        return view
     }
 
-    override fun onClick(user: Users, attend: Boolean, position: Int) {
+    override fun onClick(user: UserData, attend: Boolean, position: Int) {
         if (attend) {
             attend(user, position)
         } else {
@@ -179,7 +236,7 @@ class CreateAttFragment : Fragment(), AttAllUsersAdapter.OnClickListener {
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun attend(user: Users, position: Int) {
+    private fun attend(user: UserData, position: Int) {
         if (!attUsersList.contains(user)) {
             attUsersList.add(user)
             attAllUsersAdapter.notifyItemChanged(position)
@@ -187,7 +244,7 @@ class CreateAttFragment : Fragment(), AttAllUsersAdapter.OnClickListener {
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun absent(user: Users, position: Int) {
+    private fun absent(user: UserData, position: Int) {
         if (attUsersList.contains(user)) {
             attUsersList.remove(user)
             attAllUsersAdapter.notifyItemChanged(position)
@@ -197,7 +254,7 @@ class CreateAttFragment : Fragment(), AttAllUsersAdapter.OnClickListener {
     private fun filterAllUsers(text: String) {
         allUsersFilteredList.clear()
         for (user in allUsersList) {
-            if (user.Name!!.lowercase().contains(text.lowercase())) {
+            if (user.name.lowercase().contains(text.lowercase())) {
                 allUsersFilteredList.add(user)
             }
         }

@@ -7,42 +7,50 @@
     android:background="@color/fragment_bg">
 
     <TextView
-        android:id="@+id/tv_reacts"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="30dp"
         android:gravity="center_vertical"
         android:paddingHorizontal="10dp"
         android:text="@string/comments"
         android:textColor="@color/text_color"
         android:textSize="20sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.526"
+        android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_reacts"
+        android:layout_width="wrap_content"
+        android:layout_height="30dp"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="10dp"
+        android:text="@string/reacts"
+        android:textColor="@color/text_color"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_post_comments"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constrainedHeight="true"
+        android:layout_height="0dp"
         app:layout_constraintBottom_toTopOf="@+id/rl_edit"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_reacts"
         app:layout_constraintVertical_bias="0" />
 
-
     <RelativeLayout
         android:id="@+id/rl_edit"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/round_top_corners"
-        android:backgroundTint="@color/color1"
+        android:backgroundTint="@color/fragment_bg"
         android:padding="5dp"
-        app:layout_constraintBottom_toBottomOf="@+id/rv_post_comments"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/rl_comments"
+        app:layout_constraintTop_toTopOf="@+id/cl_chat"
         app:layout_constraintVertical_bias="0">
 
         <TextView
@@ -63,7 +71,7 @@
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
             android:layout_marginEnd="10dp"
-            android:background="@drawable/round_corners"
+            android:background="@drawable/round_corners_15dp"
             android:contentDescription="@string/todo"
             android:cropToPadding="true"
             android:padding="5dp"
@@ -74,11 +82,10 @@
     </RelativeLayout>
 
     <RelativeLayout
-        android:id="@+id/rl_comments"
+        android:id="@+id/cl_chat"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/round_top_corners"
-        android:backgroundTint="@color/color1"
+        android:backgroundTint="@color/fragment_bg"
         android:padding="10dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -109,7 +116,7 @@
             android:layout_alignEnd="@+id/et_post_comment"
             android:layout_centerVertical="true"
             android:layout_marginEnd="10dp"
-            android:background="@drawable/round_corners"
+            android:background="@drawable/round_corners_15dp"
             android:backgroundTint="@color/black"
             android:contentDescription="@string/todo"
             android:cropToPadding="true"

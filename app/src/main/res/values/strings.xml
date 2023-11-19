@@ -1,15 +1,12 @@
 <resources>
-    <string name="app_name">3ala Sorto</string>
+    <string name="app_name" translatable="false">3ala Sorto</string>
     <string name="login">Login</string>
-    <string name="num_hint">01XXXXXXXXX</string>
-    <string name="my_num">+201063017891</string>
-    <string name="zero">0</string>
+    <string name="num_hint" translatable="false">01XXXXXXXXX</string>
+    <string name="zero" translatable="false">0</string>
     <string name="verify">Verify</string>
     <string name="keep_logged_in">Keep logged in</string>
-    <string name="todo">TODO</string>
-    <string name="att_history">Attendance history list</string>
-    <string name="all_users">All users</string>
-    <string name="attended_users">Attended Users</string>
+    <string name="todo" translatable="false">TODO</string>
+    <string name="att_history">Attendance history</string>
     <string name="loading">Loading</string>
     <string name="resend_code">Resend code</string>
     <string name="user_name">User Name</string>
@@ -22,12 +19,10 @@
     <string name="year">Year</string>
     <string name="birth_date">Birth Date</string>
     <string name="points">Points</string>
-    <string name="dummy">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</string>
-    <string name="title">Title</string>
+    <string name="dummy" translatable="false">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</string>
     <string name="status">Status</string>
     <string name="college">College</string>
     <string name="university">University</string>
-    <string name="post_title">Post Title</string>
     <string name="post_description">Post Description</string>
     <string name="poll_description">Poll Description</string>
     <string name="create_new_post">Create new post</string>
@@ -36,61 +31,41 @@
     <string name="comments">Comments</string>
     <string name="edit_comment">Edit Comment</string>
     <string name="message">Message</string>
-
-    <string-array name="status_spinner_array">
-        <item>Student</item>
-        <item>Graduated</item>
-    </string-array>
-
-    <string-array name="posts_type_spinner_array">
-        <item>Post</item>
-        <item>Poll</item>
-    </string-array>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="edit_post">Edit post</string>
     <string name="delete_post">Delete post</string>
-    <string name="posts">Posts</string>
-    <string name="connected">Connected</string>
     <string name="disconnected">No internet connection</string>
-    <string name="delete_comment">Delete Comment</string>
     <string name="edit">Edit</string>
     <string name="edit_user">Edit User data</string>
-    <string name="view_user">View User Profile</string>
     <string name="delete_user">Delete User</string>
     <string name="delete">Delete</string>
     <string name="search_for_user">Search for user</string>
     <string name="add_new_user">Add new user</string>
     <string name="home">Home</string>
     <string name="give_admin_rights">Give admin rights</string>
-    <string name="personal_reminders">Personal reminders</string>
-    <string name="create_a_new_reminder">Create a new reminder</string>
-    <string name="reminder_title">Reminder title</string>
-    <string name="reminder_desc">Reminder description</string>
-    <string name="reminder_type">Reminder type (eg. confession, etc…)</string>
-    <string name="reminder_date">Reminder date</string>
-    <string name="create_custom_notification">Create custom notification</string>
-    <string name="notification_title">Notification title</string>
+    <string name="personal_reminders" translatable="false">Personal reminders</string>
+    <string name="reminder_title" translatable="false">Reminder title</string>
+    <string name="reminder_desc" translatable="false">Reminder description</string>
+    <string name="reminder_type" translatable="false">Reminder type (eg. confession, etc…)</string>
+    <string name="reminder_date" translatable="false">Reminder date</string>
+    <string name="notification_title" translatable="false">Notification title</string>
     <string name="notification_description">Notification description</string>
     <string name="send">Send</string>
-    <string name="select_users">Select users</string>
     <string name="groups">Groups</string>
-    <string name="create">Create</string>
+    <string name="create" translatable="false">Create</string>
     <string name="group_name">Group name</string>
     <string name="add_points">Add points</string>
     <string name="points_number">Enter number of points</string>
     <string name="confirm">Confirm</string>
     <string name="missing_data">Please fill missing data</string>
+    <string name="group_missing_data">Please fill missing data</string>
     <string name="check_connection">Please check your internet connection</string>
-    <string name="points_added">Points were added</string>
     <string name="poll_title">Poll title</string>
     <string name="post">Post</string>
     <string name="poll">Poll</string>
-    <string name="allow_multi_selection">Allow multi selection</string>
+    <string name="multi_selection">Allow multi selection</string>
     <string name="sort_by">Sort by…</string>
     <string name="name">Name</string>
     <string name="birth_month">Birth month</string>
-    <string name="birth_year">Birth year</string>
     <string name="january">January</string>
     <string name="february">February</string>
     <string name="march">March</string>
@@ -114,8 +89,8 @@
     <string name="buy_item">Buy item</string>
     <string name="buy_item_confirmation">Are you sure you want to buy this item?</string>
     <string name="no_more_items">No more items remaining</string>
-    <string name="missed_reminder">Missed reminder</string>
-    <string name="pending_reminder">Pending reminder</string>
+    <string name="missed_reminder" translatable="false">Missed reminder</string>
+    <string name="pending_reminder" translatable="false">Pending reminder</string>
     <string name="pending_orders">Pending orders</string>
     <string name="in_gallery">In gallery</string>
     <string name="delete_item">Delete Item?</string>
@@ -123,22 +98,91 @@
     <string name="change_request_status">Change request status</string>
     <string name="with_servant">With responsible servant</string>
     <string name="delivered">Delivered</string>
-    <string name="handle_users">Handle users</string>
+    <string name="users">Users</string>
+    <string name="handle_users">Handle Users</string>
     <string name="handle_groups">Handle groups</string>
     <string name="handle_attendance">Handle attendance</string>
-    <string name="handle_reminders">Handle reminders</string>
+    <string name="attendance">Attendance</string>
     <string name="send_custom_notification">Send custom notification</string>
     <string name="handle_gallery">Handle gallery</string>
-    <string name="emoji_1">😂</string>
-    <string name="emoji_2">😭</string>
-    <string name="emoji_3">😡</string>
-    <string name="emoji_4">😮</string>
-    <string name="emoji_5">❤</string>
-    <string name="haha">😂 HAHA</string>
-    <string name="angry">😡 Angry</string>
-    <string name="sad">😭 Sad</string>
-    <string name="wow">😮 Wow</string>
-    <string name="love">❤ Love</string>
+    <string name="emoji_1" translatable="false">😂</string>
+    <string name="emoji_2" translatable="false">😭</string>
+    <string name="emoji_3" translatable="false">😡</string>
+    <string name="emoji_4" translatable="false">😮</string>
+    <string name="emoji_5" translatable="false">❤</string>
+    <string name="haha" translatable="false">😂 HAHA</string>
+    <string name="angry" translatable="false">😡 Angry</string>
+    <string name="sad" translatable="false">😭 Sad</string>
+    <string name="wow" translatable="false">😮 Wow</string>
+    <string name="love" translatable="false">❤ Love</string>
     <string name="remove_points">Remove points</string>
+    <string name="settings">Settings</string>
+    <string name="logout">Logout</string>
+    <string name="search_for_group">Search for group</string>
+    <string name="handle_user_permissions">Give admin rights</string>
+    <string name="language">Language</string>
+    <string name="english" translatable="false">English</string>
+    <string name="arabic" translatable="false">العربية</string>
+    <string name="theme">Theme</string>
+    <string name="dark">Dark</string>
+    <string name="light">Light</string>
+    <string name="logout_confirm">Are you sure you want to logout?</string>
+    <string name="add_persons_to_this_reminder">Add persons to this reminder</string>
+    <string name="discard_changes">Discard changes?</string>
+    <string name="discard_changes_message">Are you sure you want to leave without saving changes?</string>
+    <string name="add_wishlist_item">Ask for a specific Item</string>
+    <string name="gallery_wish_list">Gallery wish list</string>
+    <string name="attachment_reply">Replying to attachment</string>
+    <string name="no_attendance_record">No attendance records for this date</string>
+    <string name="click_to_select">Click to select</string>
+    <string name="select_all">Select all</string>
+    <string name="pending_verify">Verification by admins is pending</string>
+    <string name="verify_users">Verify pending users</string>
+    <string name="handle_user_verification">Handle users verification</string>
+    <string name="user_data_created">User data were created</string>
+    <string name="user_data_not_created">" User data were not created"</string>
+    <string name="chat_with_father">Chat with father</string>
+    <string name="attendance_uploaded">Attendance was uploaded successfully</string>
+    <string name="click_to_select_media">Click to select media</string>
+    <string name="error_has_occured">An error has occured</string>
+    <string name="long_press_to_add_bio">Long press to add bio</string>
+    <string name="priest">Priest</string>
+    <string name="delete_attendance">Delete attendance?</string>
+    <string name="delete_attendance_confirmation">Are you sure you want to delete this attendance?</string>
+    <string name="incorrect_location">This location link is incorrect</string>
+    <string name="no_location">No location link for this user</string>
+    <string name="attendance_exists">An attendance with this date already exists</string>
+    <string name="reacts"><![CDATA[Reacts >]]></string>
+    <string name="attendance_percentage">Attendance percentage</string>
+    <string name="show_image">Show image</string>
+    <string name="change_profile_image">Change image</string>
+    <string name="report_issue">Report issue</string>
+    <string name="describe_the_issue">Describe the issue</string>
+    <string name="show_issues">Show Issues</string>
+    <string name="not_enough_points">You don\'t have enough points to buy this item</string>
+    <string name="admins">Admins</string>
+    <string name="spiritual_note">Spiritual note</string>
+    <string name="create_spiritual_note">Create spiritual note</string>
+    <string name="first_hour">1st hour</string>
+    <string name="third_hour">3rd hour</string>
+    <string name="sixth_hour">6th hour</string>
+    <string name="ninth_hour">9th hour</string>
+    <string name="eleventh_hour">11th hour</string>
+    <string name="twelveth_hour">12th hour</string>
+    <string name="prayers">Prayers</string>
+    <string name="reading_the_holy_bible">Reading the holy bible</string>
+    <string name="mass">Mass</string>
+    <string name="attending_mass">Attending mass</string>
+    <string name="eucharist">Eucharist</string>
+    <string name="confession">Confession</string>
+    <string name="fasting">Fasting</string>
+    <string name="pending_attendance">No internet connection, Attendance will be uploaded once connected to the internet</string>
+
+    <string-array name="status_spinner_array">
+        <item>Student</item>
+        <item>Graduated</item>
+    </string-array>
+
+    <!-- TODO: Remove or change this placeholder text -->
 
 </resources>

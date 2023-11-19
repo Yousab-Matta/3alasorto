@@ -9,7 +9,7 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.RecyclerView.ViewHolder
+import androidx.recyclerview.widget.RecyclerView.*
 import kotlin.math.abs
 
 class SwipeController(
@@ -40,12 +40,14 @@ class SwipeController(
     private val mReplyIconXOffset = 12
     private val mReplyIconYOffset = 11
 
+    private var mIsSwipeEnabled = true
+
     override fun getMovementFlags(
         recyclerView: RecyclerView,
         viewHolder: ViewHolder
     ): Int {
         mView = viewHolder.itemView
-        return if (viewHolder.itemViewType == 0) {
+        return if (viewHolder.itemView.layoutDirection == LAYOUT_DIRECTION_LTR) {
             makeMovementFlags(
                 ItemTouchHelper.ACTION_STATE_IDLE,
                 ItemTouchHelper.RIGHT
@@ -56,6 +58,14 @@ class SwipeController(
                 ItemTouchHelper.LEFT
             )
         }
+    }
+
+    fun setSwipeEnabled(isSwipeEnabled: Boolean) {
+        mIsSwipeEnabled = isSwipeEnabled
+    }
+
+    override fun isItemViewSwipeEnabled(): Boolean {
+        return mIsSwipeEnabled
     }
 
     override fun onMove(
@@ -112,7 +122,7 @@ class SwipeController(
                     p1.action == MotionEvent.ACTION_CANCEL || p1.action == MotionEvent.ACTION_UP
             }
             if (mSwipeBack) {
-                if (abs(mView!!.translationX) >= convertToDp(100)) {
+                if (abs(mView!!.translationX) >= convertToDp(20)) {
                     swipeControllerActions.onSwipePerformed(viewHolder.adapterPosition)
                 }
             }

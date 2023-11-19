@@ -28,7 +28,7 @@
         android:id="@+id/btn_send_code"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@drawable/round_corners"
+        android:background="@drawable/round_corners_15dp"
         android:backgroundTint="@color/btn_color"
         android:text="@string/login"
         android:textAllCaps="false"

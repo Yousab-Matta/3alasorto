@@ -14,169 +14,89 @@
         android:layout_height="8dp"
         android:layout_gravity="center"
         android:layout_marginTop="15dp"
-        android:background="@drawable/round_corners"
+        android:background="@drawable/round_corners_15dp"
         android:backgroundTint="@color/secondary_color" />
 
-    <LinearLayout
-        android:id="@+id/ll_view_user"
+    <TextView
+        android:id="@+id/tv_edit_user_data"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="10dp"
-        android:orientation="horizontal"
-        android:paddingHorizontal="15dp">
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginHorizontal="15dp"
+        android:layout_marginTop="15dp"
+        android:drawablePadding="10dp"
+        android:text="@string/edit_user"
+        android:textColor="@color/text_color"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:drawableStartCompat="@drawable/ic_edit"
+        app:drawableTint="@color/text_color" />
 
-        <ImageView
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_gravity="center_vertical"
-            android:src="@drawable/ic_person"
-            app:tint="@color/secondary_color" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_marginStart="15dp"
-            android:gravity="center_vertical"
-            android:text="@string/view_user"
-            android:textColor="@color/secondary_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/ll_edit_user"
+    <TextView
+        android:id="@+id/tv_add_points"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="10dp"
-        android:orientation="horizontal"
-        android:paddingHorizontal="15dp">
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginHorizontal="15dp"
+        android:layout_marginTop="15dp"
+        android:drawablePadding="10dp"
+        android:gravity="center_vertical"
+        android:text="@string/add_points"
+        android:textColor="@color/text_color"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:drawableStartCompat="@drawable/ic_add"
+        app:drawableTint="@color/text_color" />
 
-        <ImageView
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_gravity="center_vertical"
-            android:src="@drawable/ic_edit"
-            app:tint="@color/secondary_color" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_marginStart="15dp"
-            android:gravity="center_vertical"
-            android:text="@string/edit_user"
-            android:textColor="@color/secondary_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/ll_add_points"
+    <TextView
+        android:id="@+id/tv_remove_points"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="10dp"
-        android:orientation="horizontal"
-        android:paddingHorizontal="15dp">
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginHorizontal="15dp"
+        android:layout_marginTop="15dp"
+        android:drawablePadding="10dp"
+        android:gravity="center_vertical"
+        android:text="@string/remove_points"
+        android:textColor="@color/text_color"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:drawableStartCompat="@drawable/ic_remove"
+        app:drawableTint="@color/text_color" />
 
-        <ImageView
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_gravity="center_vertical"
-            android:src="@drawable/ic_add"
-            app:tint="@color/secondary_color" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_marginStart="15dp"
-            android:gravity="center_vertical"
-            android:text="@string/add_points"
-            android:textColor="@color/secondary_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/ll_remove_points"
+    <TextView
+        android:id="@+id/tv_give_admin_rights"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="10dp"
-        android:orientation="horizontal"
-        android:paddingHorizontal="15dp">
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginHorizontal="15dp"
+        android:layout_marginTop="15dp"
+        android:drawablePadding="10dp"
+        android:gravity="center_vertical"
+        android:text="@string/give_admin_rights"
+        android:textColor="@color/text_color"
+        android:textSize="20sp"
+        android:visibility="gone"
+        android:textStyle="bold"
+        app:drawableStartCompat="@drawable/ic_star"
+        app:drawableTint="@color/text_color" />
 
-        <ImageView
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_gravity="center_vertical"
-            android:src="@drawable/ic_remove"
-            app:tint="@color/secondary_color" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_marginStart="15dp"
-            android:gravity="center_vertical"
-            android:text="@string/remove_points"
-            android:textColor="@color/secondary_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/ll_give_admin_rights"
+    <TextView
+        android:id="@+id/tv_delete_user"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="10dp"
-        android:orientation="horizontal"
-        android:paddingHorizontal="15dp">
-
-        <ImageView
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_gravity="center_vertical"
-            android:src="@drawable/ic_star"
-            app:tint="@color/secondary_color" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_marginStart="15dp"
-            android:gravity="center_vertical"
-            android:text="@string/give_admin_rights"
-            android:textColor="@color/secondary_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/ll_delete_user"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="10dp"
-        android:orientation="horizontal"
-        android:paddingHorizontal="15dp">
-
-        <ImageView
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_gravity="center_vertical"
-            android:src="@drawable/ic_delete"
-            app:tint="@color/secondary_color" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_marginStart="15dp"
-            android:gravity="center_vertical"
-            android:text="@string/delete_user"
-            android:textColor="@color/secondary_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-    </LinearLayout>
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginHorizontal="15dp"
+        android:layout_marginTop="15dp"
+        android:drawablePadding="10dp"
+        android:gravity="center_vertical"
+        android:text="@string/delete_user"
+        android:textColor="@color/text_color"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:drawableStartCompat="@drawable/ic_delete"
+        app:drawableTint="@color/text_color" />
 
 </LinearLayout>

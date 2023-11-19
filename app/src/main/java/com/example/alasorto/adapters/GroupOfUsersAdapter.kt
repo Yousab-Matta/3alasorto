@@ -8,10 +8,10 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.alasorto.R
-import com.example.alasorto.dataClass.Users
+import com.example.alasorto.dataClass.UserData
 
 class GroupOfUsersAdapter(
-    private val usersList: ArrayList<Users>
+    private val usersList: ArrayList<UserData>
 ) : RecyclerView.Adapter<GroupOfUsersAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -22,8 +22,8 @@ class GroupOfUsersAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val user = usersList[position]
-        holder.nameTV.text = user.Name
-        Glide.with(holder.userIV).load(user.ImageLink).into(holder.userIV)
+        holder.nameTV.text = user.name
+        Glide.with(holder.userIV).load(user.imageLink).into(holder.userIV)
         /* val formatter = DecimalFormat("#.##")
          val percent = formatter.format(user.AttendedPercent)
          Log.d(TAG, "onBindViewHolder: ${user.AttendedPercent}")
