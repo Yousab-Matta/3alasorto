@@ -46,57 +46,23 @@
 
     </RelativeLayout>
 
-    <LinearLayout
-        android:id="@+id/ll_post_type_select"
+    <com.etebarian.meowbottomnavigation.MeowBottomNavigation
+        android:id="@+id/meowBottomNavigation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:weightSum="2"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_create_post"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@color/primary_color"
-            android:gravity="center"
-            android:text="@string/post"
-            android:textAllCaps="false"
-            android:textColor="@color/text_color"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            app:backgroundTint="@color/btn_color"
-            app:icon="@drawable/ic_post"
-            app:iconGravity="textStart"
-            app:iconTint="@color/text_color" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_create_poll"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@color/primary_color"
-            android:gravity="center"
-            android:text="@string/poll"
-            android:textAllCaps="false"
-            android:textColor="@color/text_color"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            app:backgroundTint="@color/btn_color"
-            app:icon="@drawable/ic_poll"
-            app:iconGravity="textStart"
-            app:iconTint="@color/text_color" />
-
-    </LinearLayout>
+        app:layout_constraintStart_toStartOf="parent"
+        app:mbn_backgroundBottomColor="@color/primary_color"
+        app:mbn_circleColor="@color/primary_color"
+        app:mbn_defaultIconColor="@color/secondary_color"
+        app:mbn_selectedIconColor="@color/text_color"/>
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/create_post_pager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/ll_post_type_select"
+        app:layout_constraintBottom_toTopOf="@+id/meowBottomNavigation"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/rl_create_event" />

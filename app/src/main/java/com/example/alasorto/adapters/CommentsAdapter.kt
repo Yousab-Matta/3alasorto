@@ -1,21 +1,27 @@
 package com.example.alasorto.adapters
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
+import android.view.View.VISIBLE
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.alasorto.R
 import com.example.alasorto.dataClass.Comments
 import com.example.alasorto.dataClass.UserData
+import com.example.alasorto.utils.CommentMediaLayout
+import com.example.alasorto.utils.MentionTextView
 
 class CommentsAdapter(
     private val commentsList: ArrayList<Comments>,
-    private val commentsOwnersList: ArrayList<UserData>,
-    private val showControlsDialog: (Comments) -> Unit
-
+    private val usersList: ArrayList<UserData>,
+    private val showControlsDialog: (Comments) -> Unit,
+    private val enlargeMedia: (String) -> Unit,
+    private val context: Context
 ) : RecyclerView.Adapter<CommentsAdapter.ViewHolder>() {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -25,13 +31,40 @@ class CommentsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val comment = commentsList[position]
-        holder.commentTV.text = comment.comment
-        for (owner in commentsOwnersList) {
-            if (comment.ownerID == owner.phone)
-                if (owner.imageLink.isNotEmpty()) {
-                    Glide.with(holder.userImageIV).load(owner.imageLink).into(holder.userImageIV)
-                    holder.userNameTV.text = owner.name
+        if (comment.comment.isNotEmpty()) {
+
+            //Create a list of user data to use in mention text view
+            val mentionedUsersDataList = ArrayList<UserData>()
+
+            if (comment.mentionsList.isNotEmpty()) {
+                for (userId in comment.mentionsList) {
+                    if (usersList.any { it.phone == userId } && !mentionedUsersDataList.any { it.phone == userId }) {
+                        mentionedUsersDataList.add(usersList.first { it.phone == userId })
+                    }
                 }
+            }
+
+            holder.commentTV.setDescription(
+                comment.comment,
+                comment.textWithTags,
+                comment.mentionsList,
+                mentionedUsersDataList
+            )
+
+            holder.commentTV.visibility = VISIBLE
+        }
+
+        if (comment.media != null) {
+            holder.mediaLayout.visibility = VISIBLE
+            holder.mediaLayoutController.setView(comment.media!!, holder.mediaLayout, enlargeMedia)
+        }
+
+        if (usersList.any { it.phone == comment.ownerId }) {
+            val owner = usersList.first { it.phone == comment.ownerId }
+            holder.userNameTV.text = owner.name
+            if (owner.imageLink.isNotEmpty()) {
+                Glide.with(holder.userImageIV).load(owner.imageLink).into(holder.userImageIV)
+            }
         }
     }
 
@@ -43,7 +76,9 @@ class CommentsAdapter(
         RecyclerView.ViewHolder(itemView), View.OnLongClickListener {
         val userImageIV: ImageView = itemView.findViewById(R.id.iv_comment)
         val userNameTV: TextView = itemView.findViewById(R.id.tv_comment_owner)
-        val commentTV: TextView = itemView.findViewById(R.id.tv_comment)
+        val commentTV: MentionTextView = itemView.findViewById(R.id.tv_comment)
+        val mediaLayoutController = CommentMediaLayout(itemView.context)
+        val mediaLayout: ConstraintLayout = itemView.findViewById(R.id.comment_media)
 
         private val mAdapter = adapter
 

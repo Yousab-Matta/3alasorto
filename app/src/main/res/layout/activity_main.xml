@@ -18,7 +18,7 @@
         app:layout_constraintBottom_toTopOf="@+id/bottom_nav"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/tv_connection" />
 
     <com.etebarian.meowbottomnavigation.MeowBottomNavigation
         android:id="@+id/bottom_nav"
@@ -28,10 +28,10 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:mbn_backgroundBottomColor="@color/bottom_nav"
-        app:mbn_circleColor="@color/bottom_nav"
+        app:mbn_backgroundBottomColor="@color/primary_color"
+        app:mbn_circleColor="@color/primary_color"
         app:mbn_defaultIconColor="@color/secondary_color"
-        app:mbn_selectedIconColor="@color/white" />
+        app:mbn_selectedIconColor="@color/text_color" />
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/main_frame"

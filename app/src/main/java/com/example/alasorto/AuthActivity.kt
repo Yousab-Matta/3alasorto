@@ -39,10 +39,23 @@ class AuthActivity : AppCompatActivity() {
             }
         }
 
+        val args = if (intent != null) {
+            intent.extras
+        } else {
+            null
+        }
+
         if (savedInstanceState == null) {
+            val fragment = SplashScreenFragment()
+
+            if (args != null) {
+                fragment.arguments = args
+            }
+
             val manager = this.supportFragmentManager
             val transaction = manager.beginTransaction()
-            transaction.add(R.id.auth_frame, SplashScreenFragment())
+
+            transaction.add(R.id.auth_frame, fragment)
             transaction.commit()
         }
     }

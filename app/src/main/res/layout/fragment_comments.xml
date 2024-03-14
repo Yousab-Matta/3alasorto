@@ -24,7 +24,7 @@
         android:layout_height="30dp"
         android:gravity="center_vertical"
         android:paddingHorizontal="10dp"
-        android:text="@string/reacts"
+        android:text="@string/users_who_reacted"
         android:textColor="@color/text_color"
         android:textSize="20sp"
         android:textStyle="bold"
@@ -35,41 +35,38 @@
         android:id="@+id/rv_post_comments"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/rl_edit"
+        app:layout_constraintBottom_toTopOf="@+id/layout_edit_comment"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tv_reacts"
         app:layout_constraintVertical_bias="0" />
 
-    <RelativeLayout
-        android:id="@+id/rl_edit"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_edit_comment"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:visibility="gone"
         android:background="@drawable/round_top_corners"
         android:backgroundTint="@color/fragment_bg"
-        android:padding="5dp"
+        app:layout_constraintBottom_toTopOf="@id/cl_chat"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/cl_chat"
-        app:layout_constraintVertical_bias="0">
+        app:layout_constraintStart_toStartOf="parent">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
-            android:layout_marginStart="10dp"
-            android:text="@string/edit_comment"
-            android:textColor="@color/text_color"
+            android:paddingHorizontal="10dp"
+            android:text="@string/editing_comment"
+            android:textColor="@color/text_hint"
             android:textSize="20sp"
-            android:textStyle="bold"
-            tools:ignore="RelativeOverlap" />
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <ImageButton
             android:id="@+id/btn_cancel_edit"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
+            android:layout_width="0dp"
+            android:layout_height="00dp"
             android:layout_marginEnd="10dp"
             android:background="@drawable/round_corners_15dp"
             android:contentDescription="@string/todo"
@@ -77,11 +74,15 @@
             android:padding="5dp"
             android:src="@drawable/ic_close"
             app:backgroundTint="@color/black"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintDimensionRatio="1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/white" />
 
-    </RelativeLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <RelativeLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/cl_chat"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -92,54 +93,78 @@
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent">
 
-        <EditText
+        <com.example.alasorto.utils.MentionEditText
             android:id="@+id/et_post_comment"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="35dp"
             android:layout_marginEnd="10dp"
-            android:layout_toStartOf="@+id/btn_post_comment"
             android:background="@drawable/custom_input"
             android:hint="@string/comment"
             android:importantForAutofill="no"
             android:inputType="text"
             android:paddingHorizontal="10dp"
-            android:paddingEnd="40dp"
             android:textColor="@color/text_color"
             android:textColorHint="@color/text_hint"
             app:backgroundTint="@color/primary_color"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/btn_comment_media"
+            app:layout_constraintStart_toStartOf="parent"
             tools:ignore="RtlSymmetry" />
 
         <ImageButton
-            android:id="@+id/btn_clear_text"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_alignEnd="@+id/et_post_comment"
-            android:layout_centerVertical="true"
-            android:layout_marginEnd="10dp"
-            android:background="@drawable/round_corners_15dp"
-            android:backgroundTint="@color/black"
-            android:contentDescription="@string/todo"
-            android:cropToPadding="true"
-            android:padding="5dp"
-            android:src="@drawable/ic_close"
-            android:visibility="invisible"
-            app:tint="@color/white" />
-
-        <ImageButton
-            android:id="@+id/btn_post_comment"
+            android:id="@+id/btn_send_comment"
             style="@style/Widget.MaterialComponents.ExtendedFloatingActionButton"
             android:layout_width="35dp"
             android:layout_height="35dp"
-            android:layout_alignParentEnd="true"
             android:background="@drawable/circle"
             android:contentDescription="@string/todo"
             android:src="@drawable/ic_send"
             app:backgroundTint="@color/primary_color"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="1.0"
-            app:layout_constraintStart_toStartOf="parent"
             app:tint="@color/secondary_color" />
-    </RelativeLayout>
+
+        <ImageButton
+            android:id="@+id/btn_comment_media"
+            style="@style/Widget.MaterialComponents.ExtendedFloatingActionButton"
+            android:layout_width="35dp"
+            android:layout_height="35dp"
+            android:layout_marginEnd="10dp"
+            android:background="@drawable/circle"
+            android:contentDescription="@string/todo"
+            android:src="@drawable/ic_image"
+            app:backgroundTint="@color/primary_color"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/btn_send_comment"
+            app:tint="@color/secondary_color" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <com.example.alasorto.utils.MentionRecyclerView
+        android:id="@+id/rv_mentions"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="20dp"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/round_corners_15dp"
+        android:backgroundTint="@color/primary_color"
+        android:maxHeight="300dp"
+        android:minHeight="50dp"
+        android:padding="10dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/rv_post_comments"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/rv_post_comments"
+        app:layout_constraintVertical_bias="0" />
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/comments_fragment_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

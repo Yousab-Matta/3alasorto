@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -74,7 +75,7 @@ class AttAllUsersAdapter(
         private val adapter: AttAllUsersAdapter
     ) :
         RecyclerView.ViewHolder(itemView), View.OnClickListener {
-        val userDataRl: RelativeLayout = itemView.findViewById(R.id.cl_user_item)
+        val userDataRl: ConstraintLayout = itemView.findViewById(R.id.cl_user_item)
         val nameTV: TextView = itemView.findViewById(R.id.tv_user_item_name)
         val userIV: ImageView = itemView.findViewById(R.id.iv_user_item)
 

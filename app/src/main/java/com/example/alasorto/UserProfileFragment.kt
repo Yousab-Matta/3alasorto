@@ -148,19 +148,19 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
 
         viewModel.safeSpaceItemMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
+                //If chat with father document already exits -> Go to chat fragment
                 if (it.ownerId == currentUserId) {
                     mActivity.dismissLoadingDialog()
                     goToChatFragment(it)
                 }
             } else {
-                viewModel.getAllSafeSpace()
+                //If it doesn't exits -> Create new one
+                val documentReference =
+                    Firebase.firestore.collection("ChatWithFather").document().id
+                val safeSpace =
+                    SafeSpace(currentUserId, documentReference, "", null, true)
+                viewModel.createSafeSpace(safeSpace)
             }
-        })
-
-        viewModel.safeSpaceList.observe(this.viewLifecycleOwner, Observer {
-            val safeSpace =
-                SafeSpace(currentUserId, "Case ${it.size + 1}", "", null, true)
-            viewModel.createSafeSpace(safeSpace)
         })
 
         viewModel.dismissFragmentMLD.observe(this.viewLifecycleOwner, Observer {

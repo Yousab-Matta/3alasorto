@@ -5,7 +5,8 @@
     <color name="white">#FFFFFFFF</color>
     <color name="text_color">#000000</color>
     <color name="fragment_bg">#edd6b4</color>
-    <color name="text_shadow">#000000</color>
+    <color name="tag_tint">#00AFFF</color>
+    <color name="text_shadow">#FFFFFF</color>
     <color name="bottom_nav">#BCA37F</color>
     <color name="primary_color">#FFFFFF</color>
     <color name="secondary_color">#BFBFBF</color>

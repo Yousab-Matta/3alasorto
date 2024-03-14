@@ -7,10 +7,11 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.InsetDrawable
-import android.os.Build
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.view.View.*
+import android.view.View.GONE
+import android.view.View.VISIBLE
 import android.view.Window
 import android.widget.TextView
 import android.widget.Toast
@@ -18,19 +19,15 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.size
-import androidx.fragment.app.Fragment
+import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.fragment.app.FragmentContainerView
-import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.FragmentOnAttachListener
 import androidx.lifecycle.Observer
-import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.NavigationUI.setupWithNavController
 import androidx.viewpager2.widget.ViewPager2
 import com.etebarian.meowbottomnavigation.MeowBottomNavigation
 import com.example.alasorto.adapters.MainFragmentsAdapter
+import com.example.alasorto.dataClass.Group
+import com.example.alasorto.dataClass.MediaData
 import com.example.alasorto.dataClass.UserData
-import com.example.alasorto.notification.Data
 import com.example.alasorto.notification.NotificationModel
 import com.example.alasorto.notification.NotificationViewModel
 import com.example.alasorto.offlineUserDatabase.OfflineUserData
@@ -47,13 +44,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import com.simform.custombottomnavigation.Model
-import com.simform.custombottomnavigation.SSCustomBottomNavigation
 import dagger.hilt.android.AndroidEntryPoint
-import np.com.susanthapa.curved_bottom_navigation.CbnMenuItem
-import np.com.susanthapa.curved_bottom_navigation.CurvedBottomNavigationView
-import java.util.*
-import kotlin.collections.ArrayList
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -66,7 +57,9 @@ class MainActivity : AppCompatActivity() {
     private val localeHelper = LocaleHelper()
     private val themeHelper = ThemeHelper()
     private val pendingMessagesList = ArrayList<PendingMessage>()
+    private val notificationArgsMap = HashMap<String, String>()
     private val currentUserId = FirebaseAuth.getInstance().currentUser!!.phoneNumber
+    private val uploadedMediaMap = HashMap<String, ArrayList<MediaData>>()
 
     private lateinit var internetCheck: InternetCheck
     private lateinit var connectionTV: TextView
@@ -83,7 +76,6 @@ class MainActivity : AppCompatActivity() {
     private var hasConnection = false
     private var isCurrentUserLoaded = false //Checks if current user is loaded from database
     private var offlineUser: UserData? = null
-    private var sendingMessage: PendingMessage? = null
 
     //Checks if fragment is loaded so app doesn't open fragment again
     private var isFragmentLoaded = false
@@ -116,15 +108,19 @@ class MainActivity : AppCompatActivity() {
                 appViewModel.userToken()
                 appViewModel.setOnline()
 
-                pendingMessageViewModel.readAllData.observe(this, Observer
-                { it1 ->
-                    if (it1 != null && it1.isNotEmpty()) {
-                        sendingMessage = it1.sortedBy { it2 -> it2.message.date }[0]
-                        if (sendingMessage != null) {
-                            sendPendingMessages(sendingMessage!!)
+                pendingMessageViewModel.readAllData.observe(
+                    this, Observer
+                    { it1 ->
+                        if (it1 != null) {
+                            pendingMessagesList.clear()
+                            pendingMessagesList.addAll(it1.sortedBy { it3 -> it3.message.date })
+                            if (pendingMessagesList.isNotEmpty()) {
+                                for (message in pendingMessagesList) {
+                                    sendPendingMessages(message)
+                                }
+                            }
                         }
-                    }
-                })
+                    })
 
             } else {
                 connectionTV.text = getString(R.string.disconnected)
@@ -158,13 +154,16 @@ class MainActivity : AppCompatActivity() {
         })
 
         chatViewModel.messageSentMLD.observe(this, Observer {
-            if (sendingMessage != null) {
+
+            val sentMessage = pendingMessagesList.firstOrNull { it1 -> it1.message.messageId == it }
+
+            if (sentMessage != null) {
                 chatViewModel.getMessageById(
-                    sendingMessage!!.collectionPath,
-                    sendingMessage!!.chatId,
+                    sentMessage.collectionPath,
+                    sentMessage.chatId,
                     it
                 )
-                pendingMessageViewModel.deleteMessageItem(sendingMessage!!)
+                pendingMessageViewModel.deleteMessageItem(sentMessage)
             }
         })
 
@@ -243,23 +242,92 @@ class MainActivity : AppCompatActivity() {
                 usersList = mNewList
             }
         })
+
+        appViewModel.groupByIdMLD.observe(this, Observer {
+            if (it != null) {
+                goToGroupChat(it)
+                viewPager.setCurrentItem(2, true)
+            }
+        })
+
+        chatViewModel.uploadMediaDataMLD.observe(this, Observer {
+            val key = it.keys.first()
+            val mediaData = it[key]
+            if (mediaData != null) {
+                if (uploadedMediaMap.containsKey(key) && uploadedMediaMap[key] != null) {
+                    if (!uploadedMediaMap[key]!!.contains(mediaData)) {
+                        uploadedMediaMap[key]!!.add(mediaData)
+                    }
+                } else {
+                    uploadedMediaMap[key] = arrayListOf(mediaData)
+                }
+
+                if (uploadedMediaMap.containsKey(key)) {
+                    if (pendingMessagesList.any { it1 -> it1.chatId == key }) {
+                        val pendingMessage =
+                            pendingMessagesList.firstOrNull { it1 -> it1.chatId == key }
+                        if (pendingMessage != null) {
+                            val mediaDataList = pendingMessage.message.mediaData
+
+                            if (mediaDataList.isNotEmpty() && mediaDataList.size == uploadedMediaMap[key]!!.size) {
+                                pendingMessage.message.mediaData = uploadedMediaMap[key]!!
+                                chatViewModel.sendChatMessage(pendingMessage)
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    }
+
+    fun viewPagerScrollState(canScroll: Boolean) {
+        viewPager.isUserInputEnabled = canScroll
     }
 
     private fun initViewPager() {
+        val adapter = MainFragmentsAdapter(supportFragmentManager, lifecycle)
+        if (intent.extras != null) {
+
+            var argsString = intent.extras!!.getString("DATA_MAP")
+            if (argsString != null) {
+                argsString = argsString.replace("}", "")
+                argsString = argsString.replace("{", "")
+                argsString = argsString.replace("\"", "")
+
+                val argsMap = argsString.split(",").associateTo(kotlin.collections.HashMap()) {
+                    val (left, right) = it.split(":")
+                    left to right
+                }
+
+                Log.d("TEST_NOTIF", argsString)
+                if (argsMap.containsKey("case")) {
+                    if (argsMap["case"] == "Chat") {
+                        //ToDo: Personal chat too
+                        if (argsMap["id"] != null && argsMap["id"]!!.isNotEmpty()) {
+                            appViewModel.getGroupById(argsMap["id"]!!)
+
+                        }
+                    }
+                }
+            }
+            adapter.setArgs(intent.extras)
+        }
+
         viewPager.isUserInputEnabled = true
 
-        viewPager.adapter = MainFragmentsAdapter(supportFragmentManager, lifecycle)
+        viewPager.adapter = adapter
 
         viewPager.setCurrentItem(0, true)
 
         viewPager.offscreenPageLimit = 4
 
-        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                super.onPageSelected(position)
-                bottomNavigation.show(position, true)
-            }
-        })
+        viewPager.registerOnPageChangeCallback(
+            object : ViewPager2.OnPageChangeCallback() {
+                override fun onPageSelected(position: Int) {
+                    super.onPageSelected(position)
+                    bottomNavigation.show(position, true)
+                }
+            })
     }
 
     private fun setBottomNavigationItems() {
@@ -274,6 +342,9 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         this.onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (viewPager.currentItem != 0) {
+                    viewPager.currentItem = 0
+                }
             }
         })
 
@@ -294,14 +365,8 @@ class MainActivity : AppCompatActivity() {
         themeHelper.setTheme(newBase)
     }
 
-    fun createNotification(token: String, title: String, message: String) {
-        notificationViewModel
-            .sendNotification(
-                NotificationModel(
-                    token,
-                    Data(title, message)
-                )
-            )
+    fun createNotification(notificationModel: NotificationModel) {
+        notificationViewModel.sendNotification(notificationModel)
     }
 
     fun getCurrentUser(): UserData? {
@@ -327,21 +392,55 @@ class MainActivity : AppCompatActivity() {
     private fun sendPendingMessages(pendingMessage: PendingMessage) {
         when (pendingMessage.message.messageType) {
             "Text" -> {
-                chatViewModel.sendChatMessage(pendingMessage)
-            }
-            "Image" -> {
-                chatViewModel.sendChatImage(pendingMessage, contentResolver)
-            }
-            "Video" -> {
-                chatViewModel.sendChatVideo(pendingMessage)
+                val messageMediaData = pendingMessage.message.mediaData.sortedBy { it.index }
+                if (pendingMessage.message.mediaData.isNotEmpty()) {
+                    for (item in messageMediaData) {
+
+                        if (item.type == "Image") {
+                            chatViewModel.uploadImage(
+                                item,
+                                pendingMessage.chatId,
+                                pendingMessage.message.messageId,
+                                contentResolver
+                            )
+                        } else {
+                            chatViewModel.uploadVideo(
+                                item,
+                                pendingMessage.chatId,
+                                pendingMessage.message.messageId
+                            )
+                        }
+                    }
+                } else {
+                    chatViewModel.sendChatMessage(pendingMessage)
+                }
+                uploadedMediaMap.clear()
             }
             "File" -> {
                 chatViewModel.sendChatFile(pendingMessage)
             }
             else -> {
-                chatViewModel.sendChatVoiceNote(pendingMessage, this)
+                chatViewModel.sendChatVoiceNote(pendingMessage)
             }
         }
+    }
+
+    private fun goToGroupChat(group: Group) {
+        val fragment = ChatFragment()
+        val manager = supportFragmentManager
+        val transaction = manager.beginTransaction()
+
+        val bundle = Bundle()
+        bundle.putString("CHAT_ID", group.groupId)
+        bundle.putString("COLLECTION_PATH", "GroupChat")
+        bundle.putBoolean("IS_ANONYMOUS", group.admins.isEmpty())
+        bundle.putBoolean("IS_GROUP_CHAT", group.admins.isEmpty())
+        bundle.putParcelable("GROUP", group)
+        fragment.arguments = bundle
+
+        transaction.add(R.id.main_frame, fragment)
+        transaction.addToBackStack("CHAT_FRAGMENT")
+        transaction.commit()
     }
 
     fun goToEnlargeMediaFragment(args: Bundle?) {

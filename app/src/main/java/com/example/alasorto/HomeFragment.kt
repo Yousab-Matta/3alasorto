@@ -6,12 +6,13 @@ import android.os.Bundle
 import android.view.*
 import android.view.View.*
 import android.widget.*
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.*
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.bumptech.glide.Glide
-import com.example.alasorto.adapters.PostMediaAdapter
 import com.example.alasorto.adapters.PostsAdapter
 import com.example.alasorto.dataClass.*
 import com.example.alasorto.offlineUserDatabase.OfflineUserViewModel
@@ -23,6 +24,7 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.concurrent.thread
 
 @Suppress("UNCHECKED_CAST")
@@ -41,13 +43,22 @@ class HomeFragment : Fragment(R.layout.fragment_home),
     private var selectedPost: Post? = null
     private var currentUser: UserData? = null
     private var hasConnection = false
+    private var postsHaveReachedBottom = false
+    private var canScrollVertically = true
+    private var reference = Firebase.firestore.collection("Posts")
+
+    private var groupId = ""
+    private var collectionPath = ""
 
     private lateinit var mActivity: MainActivity
     private lateinit var recyclerView: RecyclerView
-    private lateinit var addPostBtn: ImageButton
+    private lateinit var refreshLayout: SwipeRefreshLayout
+    private lateinit var linearLayoutManager: LinearLayoutManager
+    private lateinit var headerLayout: ConstraintLayout
+    private lateinit var addPostBtn: TextView
+    private lateinit var notificationsBtn: ImageButton
     private lateinit var userImageIV: ImageView
     private lateinit var postsAdapter: PostsAdapter
-    private lateinit var postsMediaAdapter: PostMediaAdapter
     private lateinit var internetCheck: InternetCheck
 
     @SuppressLint("NotifyDataSetChanged", "ClickableViewAccessibility")
@@ -56,19 +67,89 @@ class HomeFragment : Fragment(R.layout.fragment_home),
 
         view.isClickable = true
 
+        mActivity = activity as MainActivity
+
+        val args = this.arguments
+        if (args != null) {
+            collectionPath = args.getString("COLLECTION_PATH", "")
+            groupId = args.getString("GROUP_ID", "")
+
+            if (collectionPath.isNotEmpty() && groupId.isNotEmpty()) {
+                reference =
+                    Firebase.firestore.collection(collectionPath).document(groupId)
+                        .collection("Posts")
+            }
+
+            var argsString = args.getString("DATA_MAP")
+            if (argsString != null) {
+                argsString = argsString.replace("}", "")
+                argsString = argsString.replace("{", "")
+                argsString = argsString.replace("\"", "")
+
+                val argsMap = argsString.split(",").associateTo(kotlin.collections.HashMap()) {
+                    val (left, right) = it.split(":")
+                    left to right
+                }
+
+                if (argsMap.containsKey("case")) {
+                    if (argsMap["case"] == "Comment") {
+                        if (argsMap["id"] != null && argsMap["id"]!!.isNotEmpty()) {
+                            showComments(argsMap["id"]!!)
+                        }
+                    } else if (argsMap["case"] == "Post") {
+                        if (argsMap["id"] != null && argsMap["id"]!!.isNotEmpty()) {
+                            goToPostPage(argsMap["id"]!!)
+                        }
+                    } else if (argsMap["case"] == "Chat") {
+                        //ToDo: Personal chat too
+                        if (argsMap["id"] != null && argsMap["id"]!!.isNotEmpty()) {
+                            goToPostPage(argsMap["id"]!!)
+                        }
+                    }
+                }
+            }
+        }
+
         //Check internet connection
         internetCheck = InternetCheck(requireActivity().application)
         internetCheck.observe(this.viewLifecycleOwner) {
             hasConnection = it
-            if (it && postsList.size == 0) {
-                postsViewModel.getPosts()
+            if (it) {
+                if (postsList.size == 0) {
+                    postsViewModel.getPosts(reference)
+                } else {
+                    if (!postsHaveReachedBottom) {
+                        postsViewModel.getMorePosts(
+                            reference,
+                            postsList.last().postDate!!
+                        )
+                    }
+                }
             }
         }
 
         initViews(view)
         initRecyclerView()
 
-        mActivity = activity as MainActivity
+        refreshLayout.setOnRefreshListener {
+            if (hasConnection) {
+                postsList.clear()
+                postsViewModel.getPosts(reference)
+                refreshLayout.isRefreshing = false
+            }
+        }
+
+        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (postsList.size > 0 && linearLayoutManager.findLastCompletelyVisibleItemPosition() == 0 && !postsHaveReachedBottom) {
+                    postsViewModel.getMorePosts(
+                        reference,
+                        postsList.last().postDate!!
+                    )
+                }
+            }
+        })
 
         offlineUserViewModel.getUserById(currentUserId)
         offlineUserViewModel.userById.observe(this.viewLifecycleOwner, Observer {
@@ -87,8 +168,8 @@ class HomeFragment : Fragment(R.layout.fragment_home),
 
         appViewModel.currentUserMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
+                currentUser = it
                 if (currentUser != null) {
-                    currentUser = it
                     setUserData()
                 }
             }
@@ -108,28 +189,47 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         })
 
         //Posts observer
-        postsViewModel.postMLD.observe(this.viewLifecycleOwner, Observer {
+        postsViewModel.postsListMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
+                postsAdapter.notifyDataSetChanged()
+
+                postsHaveReachedBottom = it.size < 15
+
+                if (refreshLayout.isRefreshing) {
+                    refreshLayout.isRefreshing = false
+
+                    postsList.clear()
+                    postsList.addAll(it)
+                    postsList.sortByDescending { it1 -> it1.postDate }
+                    postsAdapter.notifyDataSetChanged()
+                } else {
+                    for (post in it) {
+                        if (!postsList.any { it1 -> it1.postId == post.postId }) {
+                            postsList.add(post)
+                            postsList.sortByDescending { it1 -> it1.postDate }
+                            postsAdapter.notifyItemInserted(postsList.size - 1)
+                        }
+                    }
+                }
+            }
+
+            getPostsData()
+        })
+
+        postsViewModel.newPostsListMLD.observe(this.viewLifecycleOwner, Observer {
+
+            if (it != null) {
+                postsHaveReachedBottom = it.size < 15
+
                 for (post in it) {
                     if (!postsList.any { it1 -> it1.postId == post.postId }) {
                         postsList.add(post)
                         postsList.sortByDescending { it1 -> it1.postDate }
                         postsAdapter.notifyItemInserted(postsList.size - 1)
                     }
-
-                    thread {
-                        if (!usersIdsList.contains(post.ownerID)) {
-                            appViewModel.getUserById(post.ownerID)
-                        }
-                    }
-                    thread {
-                        postsViewModel.getReacts(post.postId)
-                    }
-
-                    thread {
-                        postsViewModel.getPollData(post.postId)
-                    }
                 }
+
+                getPostsData()
             }
         })
 
@@ -137,9 +237,12 @@ class HomeFragment : Fragment(R.layout.fragment_home),
             if (it != null) {
                 postsAdapter.updatePollData(it)
 
+                //Get poll users who voted
                 if (it.pollItemData != null) {
                     for (pollItem in it.pollItemData!!) {
-                        appViewModel.getUserById(pollItem.userId!!)
+                        if (!usersIdsList.contains(pollItem.userId)) {
+                            appViewModel.getUserById(pollItem.userId)
+                        }
                     }
                 }
             }
@@ -148,7 +251,14 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         //Reacts observer
         postsViewModel.reactMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
-                postsAdapter.updateReacts(it)
+                postsAdapter.addReactToList(it)
+
+                for (index in postsList.indices) {
+                    val viewHolder = recyclerView.findViewHolderForLayoutPosition(index)
+                    if (viewHolder is PostsAdapter.PostViewHolder) {
+                        viewHolder.updateReact()
+                    }
+                }
             }
         })
 
@@ -165,6 +275,11 @@ class HomeFragment : Fragment(R.layout.fragment_home),
             goToCreatePostFragment()
         })
 
+        notificationsBtn.setOnClickListener(View.OnClickListener
+        {
+            goToNotificationsFragment()
+        })
+
         userImageIV.setOnClickListener(View.OnClickListener
         {
             goToProfileFragment()
@@ -177,21 +292,22 @@ class HomeFragment : Fragment(R.layout.fragment_home),
     override fun onResume() {
         super.onResume()
         //Check changes in posts
-        Firebase.firestore.collection("Posts").addSnapshotListener()
+        reference.addSnapshotListener()
         { _, _ ->
             if (hasConnection) {
-                postsViewModel.getPosts()
+                postsViewModel.getPosts(reference)
             }
         }
 
         //Check changes in reacts
-        Firebase.firestore.collection("PostReacts").addSnapshotListener()
-        { _, _ ->
-            if (hasConnection) {
-                for (post in postsList) {
-                    postsViewModel.getReacts(post.postId)
+        for (post in postsList) {
+            reference.document(post.postId).collection("PostReacts")
+                .addSnapshotListener()
+                { _, _ ->
+                    if (hasConnection) {
+                        postsViewModel.getReacts(reference, post.postId)
+                    }
                 }
-            }
         }
 
         //Check changes in pollData
@@ -199,7 +315,36 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         { _, _ ->
             if (hasConnection) {
                 for (post in postsList) {
-                    postsViewModel.getPollData(post.postId)
+                    if (post.postType != "Post") {
+                        postsViewModel.getPollData(post.postId)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun getPostsData() {
+        for (post in postsList) {
+
+            thread {
+                if (!usersIdsList.contains(post.ownerID)) {
+                    appViewModel.getUserById(post.ownerID)
+                }
+            }
+            thread {
+                postsViewModel.getReacts(reference, post.postId)
+            }
+
+            thread {
+                postsViewModel.getPollData(post.postId)
+            }
+
+            thread {
+                if (post.mentionsList.isNotEmpty()) {
+                    for (user in post.mentionsList)
+                        if (!usersIdsList.contains(user)) {
+                            appViewModel.getUserById(user)
+                        }
                 }
             }
         }
@@ -212,10 +357,28 @@ class HomeFragment : Fragment(R.layout.fragment_home),
 
     private fun showComments(postID: String) {
         val commentsFragment = CommentsBottomFragment(postID)
+        val args = Bundle()
+        args.putString("COLLECTION_PATH", collectionPath)
+        args.putString("GROUP_ID", groupId)
+        commentsFragment.arguments = args
         commentsFragment.show(
             requireActivity().supportFragmentManager,
             "COMMENTS_BOTTOM_SHEETS"
         )
+    }
+
+    private fun goToPeopleWhoVotedFragment(postID: String, usersList: ArrayList<UserSelection>?) {
+        val fragment = PeopleWhoReactedFragment(postID)
+        val manager = requireActivity().supportFragmentManager
+        val transaction = manager.beginTransaction()
+        val args = Bundle()
+        args.putString("COLLECTION_PATH", collectionPath)
+        args.putString("GROUP_ID", groupId)
+        args.putParcelableArrayList("USERS_WHO_VOTED", usersList)
+        fragment.arguments = args
+        transaction.add(R.id.main_frame, fragment)
+        transaction.addToBackStack("PEOPLE_WHO_REACTED_FRAGMENT")
+        transaction.commit()
     }
 
     private fun goToCreatePostFragment() {
@@ -223,10 +386,20 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         val manager = requireActivity().supportFragmentManager
         val transaction = manager.beginTransaction()
         val bundle = Bundle()
+        bundle.putString("COLLECTION_PATH", collectionPath)
+        bundle.putString("GROUP_ID", groupId)
         bundle.putBoolean("IsNewPost", true)
         fragment.arguments = bundle
         transaction.add(R.id.main_frame, fragment)
         transaction.addToBackStack("HANDLE_POSTS_FRAGMENT")
+        transaction.commit()
+    }
+
+    private fun goToNotificationsFragment() {
+        val manager = requireActivity().supportFragmentManager
+        val transaction = manager.beginTransaction()
+        transaction.add(R.id.main_frame, InAppNotificationFragment())
+        transaction.addToBackStack("IN_APP_NOTIFICATION_FRAGMENT")
         transaction.commit()
     }
 
@@ -241,29 +414,44 @@ class HomeFragment : Fragment(R.layout.fragment_home),
 
     private fun initRecyclerView() {
         //Set linear layout manager to recyclerView
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        linearLayoutManager = object : LinearLayoutManager(requireContext()) {
+            //Set can scroll vertically or no to disable scroll while changing vc progress
+            override fun canScrollVertically(): Boolean {
+                return canScrollVertically
+            }
+        }
+        recyclerView.layoutManager = linearLayoutManager
         recyclerView.addItemDecoration(LinearSpacingItemDecorator(30))
 
         //Initialize adapter and set it to recyclerview
         postsAdapter = PostsAdapter(
             postsList,
+            ::goToPeopleWhoVotedFragment,
             ::showComments,
             ::showPostControls,
             ::onPollItemClicked,
-            ::expandMedia,
-            ::expandImage,
+            ::enlargeMedia,
             ::createReact,
-            ::deleteReact
+            ::deleteReact,
+            ::goToPostPage,
+            ::changeScrollState
         )
 
         postsAdapter.setHasStableIds(true)
         recyclerView.adapter = postsAdapter
     }
 
+    private fun changeScrollState(canScroll: Boolean) {
+        //Disable or Enable viewPager scroll
+        mActivity.viewPagerScrollState(canScroll)
+        //Disable or Enable posts recyclerview scroll
+        canScrollVertically = canScroll
+    }
+
     private fun onPollItemClicked(pollPost: Post, pollItemId: String) {
         if (Firebase.auth.currentUser != null && Firebase.auth.currentUser!!.phoneNumber != null) {
             val userSelection =
-                UserSelection(Firebase.auth.currentUser!!.phoneNumber, pollItemId)
+                UserSelection(currentUserId, pollItemId)
             postsViewModel.editPollChoice(
                 userSelection,
                 pollPost,
@@ -279,11 +467,29 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         }
     }
 
+    private fun goToPostPage(postId: String) {
+        val manager = requireActivity().supportFragmentManager
+        val transaction = manager.beginTransaction()
+        transaction.add(R.id.main_frame, SpecificPostFragment(postId))
+        transaction.addToBackStack("SPECIFIC_POSTS_FRAGMENT")
+        transaction.commit()
+    }
+
     private fun initViews(view: View) {
         //Initialize views
         userImageIV = view.findViewById(R.id.iv_home_user)
+        headerLayout = view.findViewById(R.id.layout_home_header)
         recyclerView = view.findViewById(R.id.rv_admin_posts)
-        addPostBtn = view.findViewById(R.id.btn_add_admin_post)
+        addPostBtn = view.findViewById(R.id.tv_add_new_post)
+        notificationsBtn = view.findViewById(R.id.btn_user_notification)
+        refreshLayout = view.findViewById(R.id.swipe_refresh_layout)
+
+        //If both are empty then header is not needed since it will be a nested fragment inside other fragment
+        if (collectionPath.isEmpty() && groupId.isEmpty()) {
+            headerLayout.visibility = VISIBLE
+        } else {
+            headerLayout.visibility = GONE
+        }
     }
 
     private fun deletePost() {
@@ -293,7 +499,7 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         builder.setMessage(R.string.delete_post_confirmation)
         builder.setPositiveButton(R.string.yes) { _, _ ->
             if (hasConnection) {
-                postsViewModel.deletePost(selectedPost!!.postId)
+                postsViewModel.deletePost(reference, selectedPost!!.postId)
             } else {
                 Toast.makeText(
                     requireContext(),
@@ -313,6 +519,8 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         val manager = requireActivity().supportFragmentManager
         val transaction = manager.beginTransaction()
         val bundle = Bundle()
+        bundle.putString("COLLECTION_PATH", collectionPath)
+        bundle.putString("GROUP_ID", groupId)
         bundle.putParcelable("EDITING_POST", selectedPost)
         bundle.putBoolean("IsNewPost", false)
         fragment.arguments = bundle
@@ -323,31 +531,25 @@ class HomeFragment : Fragment(R.layout.fragment_home),
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun expandMedia(mediaList: ArrayList<MediaData>?, clickedItemIndex: Int) {
+    private fun enlargeMedia(
+        mediaList: ArrayList<MediaData>?,
+        clickedItemIndex: Int,
+        postID: String
+    ) {
         val args = Bundle()
         args.putParcelableArrayList("MEDIA_LIST", mediaList)
         args.putInt("CLICKED_ITEM_INDEX", clickedItemIndex)
-        mActivity.goToEnlargeMediaFragment(args)
-    }
-
-    private fun expandImage(imageLink: String) {
-        val args = Bundle()
-        args.putString("IMAGE_LINK", imageLink)
-        mActivity.goToEnlargeMediaFragment(args)
-    }
-
-    private fun expandVideo(videoLink: String) {
-        val args = Bundle()
-        args.putString("VIDEO_LINK", videoLink)
+        args.putString("POST_ID", postID)
         mActivity.goToEnlargeMediaFragment(args)
     }
 
     private fun createReact(userSelection: UserSelection, postID: String) {
-        postsViewModel.createReact(userSelection, postID)
+        postsViewModel.createReact(reference, userSelection, postID)
     }
 
     private fun deleteReact(userSelection: UserSelection, postID: String) {
-        postsViewModel.deleteReact(userSelection, postID)
+        postsAdapter.removeReactFromList(PostReact(arrayListOf(userSelection), postID))
+        postsViewModel.deleteReact(reference, userSelection, postID)
     }
 
     private fun setUserData() {

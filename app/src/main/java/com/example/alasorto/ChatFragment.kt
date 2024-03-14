@@ -4,14 +4,16 @@ import android.Manifest.permission.*
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentResolver
+import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.*
 import android.provider.OpenableColumns
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.View
 import android.view.View.*
 import android.view.animation.Animation
@@ -22,12 +24,12 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
+import androidx.core.view.removeItemAt
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.ItemTouchHelper
-import com.example.alasorto.dataClass.Group
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -35,19 +37,22 @@ import com.devlomi.record_view.OnRecordListener
 import com.devlomi.record_view.RecordButton
 import com.devlomi.record_view.RecordView
 import com.example.alasorto.adapters.ChatAdapter
+import com.example.alasorto.adapters.ChatSelectedMediaAdapter
 import com.example.alasorto.chatHistoryDatabase.ChatHistory
 import com.example.alasorto.chatHistoryDatabase.ChatHistoryViewModel
-import com.example.alasorto.dataClass.MediaData
+import com.example.alasorto.dataClass.*
 import com.example.alasorto.dataClass.Message
-import com.example.alasorto.dataClass.UserData
+import com.example.alasorto.notification.Data
+import com.example.alasorto.notification.NotificationModel
 import com.example.alasorto.pendingMessagesDatabase.PendingMessage
 import com.example.alasorto.pendingMessagesDatabase.PendingMessageViewModel
 import com.example.alasorto.utils.*
+import com.example.alasorto.viewModels.AppViewModel
 import com.example.alasorto.viewModels.ChatViewModel
+import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.yalantis.ucrop.UCrop
-import com.yalantis.ucrop.UCropActivity
 import java.io.File
 import java.util.*
 
@@ -72,34 +77,37 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         )
     }
 
-    private val chatRepliesList = HashMap<String, Message>()
-    private val allUsersList = ArrayList<UserData>()
+    private val usersList = ArrayList<UserData>()
     private val chatHistoryList = ArrayList<ChatHistory>()
-    private val viewModel: ChatViewModel by viewModels()
+    private val chatViewModel: ChatViewModel by viewModels()
     private val pendingMessagesVM: PendingMessageViewModel by viewModels()
     private val chatHistoryVM: ChatHistoryViewModel by viewModels()
+    private val appViewModel: AppViewModel by viewModels()
     private val initDate = Date()
+    private val currentUserId = Firebase.auth.currentUser?.phoneNumber.toString()
+    private val pendingMediaList = ArrayList<MediaData>()
+    private val selectedMessagesList = ArrayList<Message>()
 
     private lateinit var chatRV: RecyclerView
+    private lateinit var selectedMediaRV: RecyclerView
+    private lateinit var mentionsRV: MentionRecyclerView
     private lateinit var replyLayout: ConstraintLayout
     private lateinit var chatLayout: ConstraintLayout
+    private lateinit var headerLayout: ConstraintLayout
     private lateinit var headerImage: ImageView
     private lateinit var headerTitle: TextView
-    private lateinit var enlargedMediaLayout: ConstraintLayout
     private lateinit var replyTextTV: TextView
-    private lateinit var messageET: EditText
+    private lateinit var messageET: MentionEditText
     private lateinit var clearReplyBtn: ImageButton
     private lateinit var sendMessageBtn: ImageButton
     private lateinit var clearTextBtn: ImageButton
-    private lateinit var uploadImageBtn: ImageButton
-    private lateinit var uploadVideoBtn: ImageButton
+    private lateinit var uploadMediaBtn: ImageButton
     private lateinit var uploadFileBtn: ImageButton
-    private lateinit var expandedImage: ImageView
-    private lateinit var expandedVideo: ConstraintLayout
-    private lateinit var videoPlayer: VideoPlayer
+    private lateinit var messageOptionsBtn: ImageButton
     private lateinit var recordBtn: RecordButton
     private lateinit var recordView: RecordView
-    private lateinit var adapter: ChatAdapter
+    private lateinit var chatAdapter: ChatAdapter
+    private lateinit var selectedMediaAdapter: ChatSelectedMediaAdapter
     private lateinit var internetCheck: InternetCheck
     private lateinit var voiceRecorder: VoiceRecorder
     private lateinit var controller: SwipeController
@@ -110,7 +118,6 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
     private var collectionPath: String = ""
     private var replyMessageId: String = ""
     private var voiceNoteId: String = ""
-    private var currentUser: UserData? = null
     private var isAnonymous: Boolean = true
     private var getMoreChat: Boolean = true
     private var isGroupChat: Boolean = false
@@ -145,70 +152,19 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
 
         view.isClickable = true
 
-        //Get current user
-        currentUser = (activity as MainActivity).getCurrentUser()
+        initializeWidgets(view)
 
-        //Get all users
-        allUsersList.addAll((activity as MainActivity).getAllUsers())
-
-        //Initialize Widgets
-        chatRV = view.findViewById(R.id.rv_chat)
-        replyLayout = view.findViewById(R.id.cl_reply_text)
-        chatLayout = view.findViewById(R.id.cl_chat)
-        enlargedMediaLayout = view.findViewById(R.id.cl_chat_expanded_media)
-        expandedImage = view.findViewById(R.id.iv_expanded)
-        expandedVideo = view.findViewById(R.id.expanded_video)
-        replyTextTV = view.findViewById(R.id.tv_chat_reply)
-        messageET = view.findViewById(R.id.et_chat_text)
-        sendMessageBtn = view.findViewById(R.id.btn_gc_send)
-        clearReplyBtn = view.findViewById(R.id.btn_clear_reply)
-        recordBtn = view.findViewById(R.id.btn_record_voice)
-        recordView = view.findViewById(R.id.record_view)
-        uploadImageBtn = view.findViewById(R.id.btn_gc_image)
-        uploadVideoBtn = view.findViewById(R.id.btn_gc_video)
-        uploadFileBtn = view.findViewById(R.id.btn_gc_file)
-        headerImage = view.findViewById(R.id.iv_chat)
-        headerTitle = view.findViewById(R.id.tv_chat_name)
-
+        mentionsRV.setAdapterData(::selectMentionedUser)
+        messageET.initCommonFunctions(::showRecyclerView, ::setRecyclerViewData)
+        messageET.initChatFunctions(::editTextStatus)
         recordBtn.setRecordView(recordView)
+        initializeSelectedMediaRecyclerview()
 
-        videoPlayer = VideoPlayer(requireContext(), expandedVideo)
-
-        val args = this.arguments
-        if (args != null) {
-            group = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                args.getParcelable("GROUP", Group::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                args.getParcelable("GROUP")
-            }
-
-            if (group != null) {
-                Glide.with(headerImage).load(group!!.groupImageLink).into(headerImage)
-                headerTitle.text = group!!.name
-            }
-
-            isGroupChat = args.getBoolean("IS_GROUP_CHAT")
-            chatId = args.getString("CHAT_ID")!!
-            collectionPath = args.getString("COLLECTION_PATH")!!
-            isAnonymous = args.getBoolean("IS_ANONYMOUS")
-        }
+        getArgs()
 
         audioPath = requireContext().externalCacheDir!!.absolutePath
 
-        //Initialize adapter
-        adapter = ChatAdapter(
-            messagesList,
-            allUsersList,
-            currentUser!!.phone,
-            requireContext(),
-            ::scrollAllowed,
-            ::goToReply,
-            ::pauseAll,
-            ::enlargeImage,
-            ::enlargeVideo,
-            isAnonymous
-        )
+        initializeChatAdapter()
 
         //Create LayoutManager
         linearLayoutManager = object : LinearLayoutManager(requireContext()) {
@@ -218,11 +174,12 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             }
         }
 
-        linearLayoutManager.stackFromEnd = true
+        //linearLayoutManager.stackFromEnd = true
+        linearLayoutManager.reverseLayout
 
         chatRV.layoutManager = linearLayoutManager
         chatRV.addItemDecoration(LinearSpacingItemDecorator(20))
-        chatRV.adapter = adapter
+        chatRV.adapter = chatAdapter
 
         chatRV.addOnScrollListener(activeScrollListener)
 
@@ -257,53 +214,72 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             hasConnection = it
             if (it) {
                 if (!isChatLoadedFirstTime) {
-                    viewModel.getChat(collectionPath, chatId)
+                    chatViewModel.getChat(collectionPath, chatId)
                     isChatLoadedFirstTime = true
                 }
             }
         }
 
-        viewModel.audioFileMLD.observe(this.viewLifecycleOwner, Observer {
+        chatViewModel.audioFileMLD.observe(this.viewLifecycleOwner, Observer {
             val key = it.name.removeSuffix(".3gp")
             val audioMessage = messagesList.firstOrNull { it1 -> it1.messageId == key }
             if (audioMessage?.mediaData != null) {
                 messagesList.remove(audioMessage)
-                audioMessage.mediaData!!.media = it.path
+                audioMessage.mediaData[0].media = it.path
                 messagesList.add(audioMessage)
                 messagesList.sortBy { it2 -> it2.date }
-                adapter.notifyItemChanged(messagesList.indexOf(audioMessage))
+                chatAdapter.notifyItemChanged(messagesList.indexOf(audioMessage))
             }
         })
 
-        viewModel.fileMLD.observe(this.viewLifecycleOwner, Observer {
-            //ToDo
+        chatViewModel.fileMLD.observe(this.viewLifecycleOwner, Observer {
+            val fileName = it.nameWithoutExtension
+            val fileExtension = it.extension
+            //Get all messages where media name == file name && media extension == file extension
+            val filteredMessageList =
+                messagesList.filter { it1 -> it1.message == fileName && it1.mediaData[0].type == fileExtension }
+            if (filteredMessageList.isNotEmpty()) {
+                for (message in filteredMessageList) {
+                    //Change media link with media for each message in list so that the adapter indicates that media is already downloaded,  hence hide download button
+                    message.mediaData[0].media = it.path
+                    chatAdapter.notifyItemChanged(messagesList.indexOf(message))
+                }
+            }
         })
 
         //Observe chat
-        viewModel.chatMLD.observe(this.viewLifecycleOwner, Observer {
+        chatViewModel.chatMLD.observe(this.viewLifecycleOwner, Observer {
             listenToSnapShot = true
             if (it != null) {
 
-                val altMessageList = HandleMessages(messagesList, it, adapter).handleMessagesList()
+                val altMessageList =
+                    HandleMessages(messagesList, it, chatAdapter).handleMessagesList()
                 messagesList = altMessageList
 
                 getVoiceNote()
+                checkIfFileExists()
 
                 chatRV.scrollToPosition(messagesList.size - 1)
                 chatReachedTop = it.size < 10
                 getMoreChat = true
+
+                getUsers(messagesList)
             }
-            viewModel.chatMLD.removeObservers(this.viewLifecycleOwner)
+            chatViewModel.chatMLD.removeObservers(this.viewLifecycleOwner)
         })
 
         //Observe old chats when scrolled up
-        viewModel.olderChatMld.observe(this.viewLifecycleOwner, Observer {
+        chatViewModel.olderChatMld.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
 
-                val altMessageList = HandleMessages(messagesList, it, adapter).handleMessagesList()
+                val altMessageList =
+                    HandleMessages(messagesList, it, chatAdapter).handleMessagesList()
                 messagesList = altMessageList
 
                 getVoiceNote()
+                checkIfFileExists()
+
+                getUsers(messagesList)
 
                 chatReachedTop = it.size < 10
                 getMoreChat = true
@@ -311,12 +287,16 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         })
 
         //Observe new chats when scrolled down
-        viewModel.newerChatMLD.observe(this.viewLifecycleOwner, Observer {
+        chatViewModel.newerChatMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
-                val altMessageList = HandleMessages(messagesList, it, adapter).handleMessagesList()
+                val altMessageList =
+                    HandleMessages(messagesList, it, chatAdapter).handleMessagesList()
                 messagesList = altMessageList
 
+                getUsers(messagesList)
+
                 getVoiceNote()
+                checkIfFileExists()
 
                 chatReachedBottom = it.size < 10
                 getMoreChat = true
@@ -324,12 +304,16 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         })
 
         //Observe newly added chats
-        viewModel.newMessagesMLD.observe(this.viewLifecycleOwner, Observer {
+        chatViewModel.newMessagesMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
-                val altMessageList = HandleMessages(messagesList, it, adapter).handleMessagesList()
+                val altMessageList =
+                    HandleMessages(messagesList, it, chatAdapter).handleMessagesList()
                 messagesList = altMessageList
 
+                getUsers(messagesList)
+
                 getVoiceNote()
+                checkIfFileExists()
 
                 if (linearLayoutManager.findLastCompletelyVisibleItemPosition() == messagesList.size - 2) {
                     chatRV.scrollToPosition(messagesList.size - 1)
@@ -340,52 +324,32 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         })
 
         //Observe newly added chats
-        viewModel.updatedMessageMLD.observe(MainActivity(), Observer {
+        chatViewModel.updatedMessageMLD.observe(MainActivity(), Observer {
             if (it != null) {
                 val altMessageList =
-                    HandleMessages(messagesList, arrayListOf(it), adapter).handleMessagesList()
+                    HandleMessages(messagesList, arrayListOf(it), chatAdapter).handleMessagesList()
                 messagesList = altMessageList
             }
         })
 
         //Clear old chat list and create a new one
-        viewModel.replyChatMLD.observe(this.viewLifecycleOwner, Observer {
+        chatViewModel.replyChatMLD.observe(this.viewLifecycleOwner, Observer {
             listenToSnapShot = true
             if (it != null) {
-                adapter.updateList(it)
+                chatAdapter.updateChatList(it)
                 chatRV.scrollToPosition(messagesList.indexOf(replyMessage))
                 getMoreChat = true
             }
         })
 
         //Get Reply for chat items that is a reply fo another message
-        viewModel.chatRepliesMld.observe(this.viewLifecycleOwner, Observer {
-            if (messagesList.any { it1 -> it1.repliedMessageId.contains(it.messageId) }) {
-                val messagesWithReplyList =
-                    messagesList.filter { it1 -> it1.repliedMessageId.contains(it.messageId) }
-                for (message in messagesWithReplyList) {
-                    adapter.updateRepliesList(message.messageId, it)
-                }
-            }
+        chatViewModel.chatRepliesMld.observe(this.viewLifecycleOwner, Observer {
+            chatAdapter.updateRepliesList(it)
         })
-
-        /*viewModel.messageSentMLD.observe(this.viewLifecycleOwner, Observer {
-            if (pendingMessagesList.any { it1 -> it1.message.messageID == it }) {
-                pendingMessagesList.remove(pendingMessagesList.first { it1 -> it1.message.messageID == it })
-            }
-        })
-
-        pendingMessagesVM.readAllData.observe(this.viewLifecycleOwner, Observer {
-            for (item in it) {
-                if (!pendingMessagesList.contains(item))
-                    pendingMessagesList.add(item)
-            }
-        })*/
 
         recordView.setOnRecordListener(object : OnRecordListener {
             override fun onStart() {
-                uploadImageBtn.visibility = GONE
-                uploadVideoBtn.visibility = GONE
+                uploadMediaBtn.visibility = GONE
                 uploadFileBtn.visibility = GONE
                 messageET.visibility = GONE
 
@@ -404,18 +368,17 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
 
             override fun onFinish(recordTime: Long, limitReached: Boolean) {
                 voiceRecorder.stopRecord()
-                sendVoiceNote(recordTime.toInt() - 350)
+                sendVoiceNote(recordTime.toInt())
 
                 //Get show original views again
-                uploadImageBtn.visibility = VISIBLE
-                uploadVideoBtn.visibility = VISIBLE
+                uploadMediaBtn.visibility = VISIBLE
+                uploadFileBtn.visibility = VISIBLE
                 messageET.visibility = VISIBLE
             }
 
             override fun onLessThanSecond() {
                 //Get show original views again
-                uploadImageBtn.visibility = VISIBLE
-                uploadVideoBtn.visibility = VISIBLE
+                uploadMediaBtn.visibility = VISIBLE
                 uploadFileBtn.visibility = VISIBLE
                 messageET.visibility = VISIBLE
             }
@@ -427,8 +390,8 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
 
         recordView.setOnBasketAnimationEndListener {
             //Get show original views again
-            uploadImageBtn.visibility = VISIBLE
-            uploadVideoBtn.visibility = VISIBLE
+            uploadMediaBtn.visibility = VISIBLE
+            uploadFileBtn.visibility = VISIBLE
             messageET.visibility = VISIBLE
         }
 
@@ -443,41 +406,85 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             clearReply()
         }
 
-        uploadImageBtn.setOnClickListener {
-            openGalleryForImage()
-        }
-
-        uploadVideoBtn.setOnClickListener {
-            openGalleryForVideo()
+        uploadMediaBtn.setOnClickListener {
+            openGalleryForMedia()
         }
 
         uploadFileBtn.setOnClickListener {
             openGalleryForFile()
         }
 
-        messageET.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-            }
+        sendMessageBtn.setOnClickListener {
+            sendTextMessage()
+        }
 
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                if (s!!.toString().isNotEmpty()) {
-                    expandEditText()
-                } else {
-                    downscaleEditText()
+        messageOptionsBtn.setOnClickListener {
+            val popUpMenu = PopupMenu(requireActivity(), messageOptionsBtn)
+            popUpMenu.menuInflater.inflate(R.menu.message_options, popUpMenu.menu)
+
+            val selectedMessage = chatAdapter.getSelectedMessage()
+            if (selectedMessage != null) {
+
+                if (selectedMessage.message.isNullOrEmpty()) {
+                    popUpMenu.menu.removeItemAt(0)
                 }
             }
 
-            override fun afterTextChanged(s: Editable?) {
-            }
+            popUpMenu.setOnMenuItemClickListener {
+                if (selectedMessage != null) {
 
+                    if (it.title == "Copy") {
+                        val clipboardManager =
+                            requireActivity().getSystemService(Context.CLIPBOARD_SERVICE) as (ClipboardManager)
+                        val clipData =
+                            ClipData.newPlainText(selectedMessage.message, selectedMessage.message)
+                        clipboardManager.setPrimaryClip(clipData)
+                    } else {
+                        showMessageDetails(selectedMessage.seenBy)
+                    }
+                }
+                true
+            }
+            popUpMenu.show()
+        }
+
+        appViewModel.userByIdMLD.observe(this.viewLifecycleOwner, Observer {
+            if (it != null) {
+                updateUsersList(it)
+            }
         })
 
-        sendMessageBtn.setOnClickListener(View.OnClickListener
-        {
+        val itemTouchHelper = ItemTouchHelper(controller)
+        itemTouchHelper.attachToRecyclerView(chatRV)
+
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    private fun sendTextMessage() {
+        if (messageET.text.toString().trim()
+                .isNotEmpty() || pendingMediaList.isNotEmpty()
+        ) {
+
+            val mentionedUsersList = messageET.getMentionedUsers()
+
+            val messageText = if (mentionedUsersList.size > 0) {
+                messageET.getActualText().trim()
+            } else {
+                messageET.text!!.toString().trim()
+            }
+
+            val mentionsList = ArrayList<String>()
+            if (mentionedUsersList.size > 0) {
+                for (user in mentionedUsersList) {
+                    mentionsList.add(user.phone)
+                }
+            }
+
             val messageId = Firebase.firestore.collection("Chats").document().id
             val message = Message(
-                messageET.text.toString().trim(),
-                currentUser!!.phone,
+                messageET.text!!.toString().trim(),
+                messageText,
+                currentUserId,
                 messageId,
                 "Text",
                 replyMessageId,
@@ -485,23 +492,164 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                 "Sending",
                 isGroupChat,
                 ArrayList(),
-                null
+                mentionsList,
+                pendingMediaList
             )
-            if (messageET.text.toString().trim().isNotEmpty()) {
-                messagesList.add(message)
-                val position = messagesList.indexOf(message)
-                adapter.notifyItemInserted(position)
-                chatRV.scrollToPosition(position)
-                val pendingMessage =
-                    PendingMessage(0, chatId, collectionPath, message)
-                pendingMessagesVM.addMessageItem(pendingMessage)
-                messageET.text.clear()
-                clearReply()
+
+
+            messagesList.add(message)
+            val position = messagesList.indexOf(message)
+            chatAdapter.notifyItemInserted(position)
+            chatRV.scrollToPosition(position)
+            val pendingMessage =
+                PendingMessage(0, chatId, collectionPath, message)
+            pendingMessagesVM.addMessageItem(pendingMessage)
+
+            if (usersList.any { it1 -> it1.phone == currentUserId }) {
+                val currentUserName = usersList.first { it1 -> it1.phone == currentUserId }.name
+
+                for (user in mentionedUsersList) {
+                    val notifMessage = "$currentUserName mentioned you in a message"
+                    val dataMap = hashMapOf("case" to "Chat", "id" to chatId)
+                    val date = DateUtils().getTime()
+
+                    val notificationModel = NotificationModel(
+                        user.token,
+                        Data(
+                            "3ala Sorto",
+                            notifMessage,
+                            dataMap
+                        )
+                    )
+                    (activity as MainActivity).createNotification(notificationModel)
+
+                    val inAppNotificationData =
+                        InAppNotificationData(
+                            currentUserId,
+                            user.phone,
+                            notifMessage,
+                            "",
+                            date,
+                            dataMap
+                        )
+
+                    appViewModel.createInAppNotification(inAppNotificationData)
+                }
+            }
+            messageET.text!!.clear()
+            selectedMediaRV.visibility = GONE
+            downscaleEditText()
+            clearReply()
+        }
+    }
+
+    private fun showMessageDetails(usersList: ArrayList<String>) {
+        val fragment = SeenByFragment(usersList)
+        val manager = requireActivity().supportFragmentManager
+        val transaction = manager.beginTransaction()
+        transaction.add(R.id.main_frame, fragment)
+        transaction.addToBackStack("SEEN_BY_FRAGMENT")
+        transaction.commit()
+    }
+
+    private fun initializeChatAdapter() {
+        //Initialize adapter
+        chatAdapter = ChatAdapter(
+            messagesList,
+            currentUserId,
+            requireContext(),
+            ::scrollAllowed,
+            ::goToReply,
+            ::pauseAll,
+            ::enlargeMedia,
+            ::downloadFile,
+            ::changeMessageDetailsVisibility,
+            isAnonymous
+        )
+    }
+
+    private fun initializeSelectedMediaRecyclerview() {
+        selectedMediaAdapter = ChatSelectedMediaAdapter(pendingMediaList, ::removeMediaItem)
+        selectedMediaRV.layoutManager =
+            LinearLayoutManager(requireContext(), RecyclerView.HORIZONTAL, false)
+        selectedMediaRV.addItemDecoration(object : RecyclerView.ItemDecoration() {
+            override fun getItemOffsets(
+                outRect: Rect,
+                view: View,
+                parent: RecyclerView,
+                state: RecyclerView.State
+            ) {
+                outRect.right = 30
             }
         })
+        selectedMediaRV.adapter = selectedMediaAdapter
+    }
 
-        val itemTouchHelper = ItemTouchHelper(controller)
-        itemTouchHelper.attachToRecyclerView(chatRV)
+    private fun removeMediaItem(mediaItem: MediaData) {
+        val removedItemIndex = pendingMediaList.indexOf(mediaItem)
+        pendingMediaList.remove(mediaItem)
+        selectedMediaAdapter.notifyItemRemoved(removedItemIndex)
+
+        pendingMediaList.sortBy { it.index }
+
+        if (pendingMediaList.isNotEmpty()) {
+            //Rearrange indices
+            for (item in pendingMediaList) {
+                if (item.index != pendingMediaList.indexOf(item)) {
+                    item.index = pendingMediaList.indexOf(item)
+                }
+            }
+        } else {
+            //Restore views visibility if media array is empty
+            selectedMediaRV.visibility = GONE
+            uploadMediaBtn.visibility = VISIBLE
+            recordBtn.visibility = VISIBLE
+            uploadFileBtn.visibility = VISIBLE
+            sendMessageBtn.visibility = GONE
+        }
+    }
+
+    private fun changeMessageDetailsVisibility(isVisible: Boolean) {
+        messageOptionsBtn.visibility = if (isVisible) {
+            VISIBLE
+        } else {
+            GONE
+        }
+    }
+
+    private fun getArgs() {
+        val args = this.arguments
+        if (args != null) {
+            group = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                args.getParcelable("GROUP", Group::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                args.getParcelable("GROUP")
+            }
+
+            if (group != null) {
+                Glide.with(headerImage).load(group!!.groupImageLink).into(headerImage)
+                headerTitle.text = group!!.name
+
+                //Get group members and admins data
+                for (member in group!!.members) {
+                    appViewModel.getUserById(member)
+                }
+
+                for (admin in group!!.admins) {
+                    appViewModel.getUserById(admin)
+                }
+            }
+
+            isGroupChat = args.getBoolean("IS_GROUP_CHAT")
+            chatId = args.getString("CHAT_ID")!!
+            collectionPath = args.getString("COLLECTION_PATH")!!
+            isAnonymous = args.getBoolean("IS_ANONYMOUS")
+
+            if (!isGroupChat) {
+                headerLayout.visibility = GONE
+            }
+        }
     }
 
     override fun onResume() {
@@ -513,14 +661,19 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             .addSnapshotListener { _, _ ->
                 if (hasConnection && listenToSnapShot) {
                     if (messagesList.size > 0) {
-                        val lastSentMessage = messagesList.lastOrNull { it.status == "Delivered" }
+                        val lastSentMessage =
+                            messagesList.lastOrNull { it.status == "Delivered" }
                         if (lastSentMessage != null) {
-                            viewModel.getNewMessages(collectionPath, chatId, lastSentMessage.date!!)
+                            chatViewModel.getNewMessages(
+                                collectionPath,
+                                chatId,
+                                lastSentMessage.date!!
+                            )
                         } else {
-                            viewModel.getNewMessages(collectionPath, chatId, initDate)
+                            chatViewModel.getNewMessages(collectionPath, chatId, initDate)
                         }
                     } else {
-                        viewModel.getNewMessages(collectionPath, chatId, initDate)
+                        chatViewModel.getNewMessages(collectionPath, chatId, initDate)
                     }
                 }
             }
@@ -529,11 +682,10 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             this.viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    if (expandedImage.visibility == VISIBLE) {
-                        closeExpandedImage()
-                    } else if (expandedVideo.visibility == VISIBLE) {
-                        closeExpandedVideo()
-                    } else {
+                    //If there are any selected messages clear all selected messages
+                    if (chatAdapter.areMessagesSelected()) {
+                        chatAdapter.removeSelectedMessage()
+                    } else { //Else remove fragment
                         requireActivity().supportFragmentManager.popBackStackImmediate(
                             "CHAT_FRAGMENT",
                             FragmentManager.POP_BACK_STACK_INCLUSIVE
@@ -544,28 +696,69 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             })
     }
 
-    private fun downloadFile(url: String, messageId: String, extension: String) {
-        viewModel.getFile(url, messageId, requireContext(), extension)
+    private fun downloadFile(message: Message) {
+        chatViewModel.downloadFile(message, requireContext())
     }
 
     private fun getVoiceNote() {
         if (messagesList.any { it1 -> it1.messageType == "VoiceNote" }) {
             val voiceNotesMessages =
                 messagesList.filter { it1 ->
-                    it1.messageType == "VoiceNote" && it1.mediaData != null
+                    it1.messageType == "VoiceNote"
                 }
 
             for (message in voiceNotesMessages) {
 
-                if (message.mediaData!!.mediaLink != null && message.mediaData!!.mediaLink!!.isNotEmpty()) {
-
-                    viewModel.getVoiceNote(
-                        message.mediaData!!.mediaLink!!,
-                        message.messageId,
-                        requireContext()
+                if (!message.mediaData[0].mediaLink.isNullOrEmpty()) {
+                    chatViewModel.getVoiceNote(
+                        message.mediaData[0].mediaLink!!,
+                        message.messageId
                     )
                 }
             }
+        }
+    }
+
+    private fun checkIfFileExists() {
+        if (messagesList.any { it1 -> it1.messageType == "File" }) {
+            val filteredMessagesList =
+                messagesList.filter { it1 ->
+                    it1.messageType == "File"
+                }
+
+            for (filteredMessage in filteredMessagesList) {
+
+                if (!filteredMessage.mediaData[0].mediaLink.isNullOrEmpty()) {
+
+                    chatViewModel.checkIfFileExists(filteredMessage)
+                }
+            }
+        }
+    }
+
+    private fun getUsers(messagesList: ArrayList<Message>) {
+        for (message in messagesList) {
+            for (userId in message.mentions) {
+                if (userId.isNotEmpty() && !usersList.any { it.phone == userId }) {
+                    appViewModel.getUserById(userId)
+                }
+            }
+            for (userId in message.seenBy) {
+                if (userId.isNotEmpty() && !usersList.any { it.phone == userId }) {
+                    appViewModel.getUserById(userId)
+                }
+            }
+            if (message.ownerId.isNotEmpty() && !usersList.any { it.phone == message.ownerId }) {
+                appViewModel.getUserById(message.ownerId)
+            }
+        }
+    }
+
+    private fun editTextStatus(isEditTextEmpty: Boolean) {
+        if (!isEditTextEmpty) {
+            expandEditText()
+        } else {
+            downscaleEditText()
         }
     }
 
@@ -580,67 +773,23 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             chatRV.scrollToPosition(messagesList.indexOf(message))
         } else {
             if (hasConnection) {
-                viewModel.goToReplyMessage(collectionPath, chatId, message.date!!)
+                chatViewModel.goToReplyMessage(collectionPath, chatId, message.date!!)
                 chatReachedBottom = false
             }
         }
     }
 
-    //Select Image
-    private fun openGalleryForImage() {
-        val intent = Intent(Intent.ACTION_PICK)
-        intent.type = "image/*"
-        pickImageLauncher.launch(intent)
-    }
-
-    //Crop Image
-    //Select Image Launchers
-    private val pickImageLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                val data: Intent = result.data!!
-                val sourceUri: Uri = data.data!!
-                val destinationUri = Uri.fromFile(
-                    File(
-                        requireActivity().cacheDir,
-                        queryName(requireActivity().contentResolver, sourceUri)
-                    )
-                )
-
-                //UCrop options
-                val options = UCrop.Options()
-                options.setToolbarColor(ContextCompat.getColor(requireActivity(), R.color.black))
-                options.setStatusBarColor(ContextCompat.getColor(requireActivity(), R.color.black))
-                options.setToolbarWidgetColor(
-                    ContextCompat.getColor(
-                        requireActivity(),
-                        R.color.white
-                    )
-                )
-
-                options.setFreeStyleCropEnabled(true)
-                options.setAllowedGestures(
-                    UCropActivity.SCALE,
-                    UCropActivity.ALL,
-                    UCropActivity.SCALE
-                )
-
-                val intent = UCrop.of(sourceUri, destinationUri)
-                    .withOptions(options)
-                    .getIntent(requireActivity())
-                cropResult.launch(intent)
-            }
-        }
-
     //Crop Result Launcher
-    private val cropResult = registerForActivityResult(
+    private
+    val cropResult = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
             assert(result.data != null)
             val resultUri = UCrop.getOutput(result.data!!)
             if (resultUri != null) {
-                val messageId = Firebase.firestore.collection("Chats").document().id
+                val messageId =
+                    Firebase.firestore.collection("Chats").document().id
 
                 requireContext().grantUriPermission(
                     requireActivity().packageName,
@@ -648,11 +797,25 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
                 )
 
-                val mediaData = MediaData(null, resultUri.toString(), null, null, 0, 0)
+                val extension = if (resultUri.path != null) {
+                    File(resultUri.path!!).extension
+                } else {
+                    ""
+                }
+
+                val mediaData = MediaData(
+                    null,
+                    resultUri.toString(),
+                    null,
+                    extension,
+                    0,
+                    0
+                )
 
                 val message = Message(
-                    messageET.text.toString().trim(),
-                    currentUser!!.phone,
+                    "",
+                    "",
+                    currentUserId,
                     messageId,
                     "Image",
                     replyMessageId,
@@ -660,80 +823,138 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                     "Sending",
                     isGroupChat,
                     ArrayList(),
-                    mediaData
+                    ArrayList(),
+                    arrayListOf(mediaData)
                 )
                 messagesList.add(message)
-                adapter.notifyItemInserted(messagesList.indexOf(message))
+                chatAdapter.notifyItemInserted(messagesList.indexOf(message))
                 chatRV.scrollToPosition(messagesList.indexOf(message))
                 val pendingMessage =
                     PendingMessage(0, chatId, collectionPath, message)
                 pendingMessagesVM.addMessageItem(pendingMessage)
             }
         } else if (result.resultCode == RESULT_CANCEL) {
-            Toast.makeText(context, "Image was not Uploaded", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                "Image was not Uploaded",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
-    //Select Video
-    private fun openGalleryForVideo() {
-        val intent = Intent(Intent.ACTION_PICK)
-        intent.type = "video/*"
-        pickVideoLauncher.launch(intent)
+    //Select Media
+    private fun openGalleryForMedia() {
+        val intent = Intent()
+        intent.type = "image/* video/*"
+        intent.action = Intent.ACTION_GET_CONTENT
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        pickMediaLauncher.launch(intent)
     }
 
-    //Select video launcher
-    private val pickVideoLauncher =
+    //Select Image Launchers
+    @SuppressLint("NotifyDataSetChanged")
+    private val pickMediaLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
+                pendingMediaList.clear()
+                selectedMediaAdapter.notifyDataSetChanged()
+                selectedMediaRV.visibility = VISIBLE
+                expandEditText()
                 val data: Intent = result.data!!
-                val sourceUri: Uri = data.data!!
 
-                requireContext().grantUriPermission(
-                    requireActivity().packageName,
-                    sourceUri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
+                if (data.clipData != null) { //multiple media items
+                    val count = data.clipData!!.itemCount
 
-                val retriever = MediaMetadataRetriever()
-                retriever.setDataSource(requireContext(), sourceUri)
-                val width =
-                    Integer.valueOf(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)!!)
-                val height =
-                    Integer.valueOf(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)!!)
-                val duration =
-                    Integer.valueOf(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)!!)
+                    for (i in 0 until count) {
+                        val uri = data.clipData!!.getItemAt(i).uri
+                        val mediaType = getMediaType(uri)
 
-                Toast.makeText(requireContext(), "$width // $height", Toast.LENGTH_SHORT).show()
+                        requireContext().grantUriPermission(
+                            requireActivity().packageName,
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
 
-                val mediaData =
-                    MediaData(null, sourceUri.toString(), null, null, width, height, duration)
+                        val mediaWidth = if (mediaType == "Video") {
+                            val retriever = MediaMetadataRetriever()
+                            retriever.setDataSource(requireContext(), uri)
+                            Integer.valueOf(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)!!)
+                        } else {
+                            0
+                        }
 
-                val messageId = Firebase.firestore.collection("Chats").document().id
+                        val mediaHeight = if (mediaType == "Video") {
+                            val retriever = MediaMetadataRetriever()
+                            retriever.setDataSource(requireContext(), uri)
+                            Integer.valueOf(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)!!)
+                        } else {
+                            0
+                        }
 
+                        val mediaItem =
+                            MediaData(
+                                pendingMediaList.size,
+                                uri.toString(),
+                                null,
+                                mediaType,
+                                mediaWidth,
+                                mediaHeight
+                            )
+                        pendingMediaList.add(mediaItem)
+                        selectedMediaAdapter.notifyItemInserted(pendingMediaList.indexOf(mediaItem))
+                    }
+                } else {//one media items
+                    val uri: Uri = data.data!!
 
-                val message = Message(
-                    messageET.text.toString().trim(),
-                    currentUser!!.phone,
-                    messageId,
-                    "Video",
-                    replyMessageId,
-                    DateUtils().getTime(),
-                    "Sending",
-                    isGroupChat,
-                    ArrayList(),
-                    mediaData
-                )
-                messagesList.add(message)
-                adapter.notifyItemInserted(messagesList.indexOf(message))
-                chatRV.scrollToPosition(messagesList.indexOf(message))
-                val pendingMessage =
-                    PendingMessage(
-                        0,
-                        chatId,
-                        collectionPath,
-                        message
+                    requireContext().grantUriPermission(
+                        requireActivity().packageName,
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
                     )
-                pendingMessagesVM.addMessageItem(pendingMessage)
+
+                    val mediaType = getMediaType(uri)
+
+                    val mediaWidth = if (mediaType == "Video") {
+                        val retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(requireContext(), uri)
+                        Integer.valueOf(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)!!)
+                    } else {
+                        0
+                    }
+
+                    val mediaHeight = if (mediaType == "Video") {
+                        val retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(requireContext(), uri)
+                        Integer.valueOf(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)!!)
+                    } else {
+                        0
+                    }
+
+                    /*val filePathColum = arrayOf(MediaStore.Images.Media.DATA)
+                    val cursor =
+                        requireContext().contentResolver.query(uri, filePathColum, null, null, null)
+                    cursor!!.moveToFirst()
+
+                    val columnIndex = cursor.getColumnIndex(filePathColum[0])
+                    val picturePath = cursor.getString(columnIndex)
+                    cursor.close()
+
+                    val bitmap = ThumbnailUtils.createVideoThumbnail(picturePath,MediaStore.Video.Thumbnails.FULL_SCREEN_KIND)*/
+
+                    val mediaItem =
+                        MediaData(
+                            pendingMediaList.size,
+                            uri.toString(),
+                            null,
+                            mediaType,
+                            mediaWidth,
+                            mediaHeight
+                        )
+                    pendingMediaList.add(mediaItem)
+                    selectedMediaAdapter.notifyItemInserted(pendingMediaList.indexOf(mediaItem))
+                }
             }
         }
 
@@ -745,8 +966,11 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
     }
 
     //Select file launcher
-    private val pickFileLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+    private
+    val pickFileLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 val data: Intent = result.data!!
                 val sourceUri: Uri = data.data!!
@@ -758,21 +982,32 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                 )
 
                 val file = File(sourceUri.path!!)
-                val nameWithSource = file.name
-                val fileName = nameWithSource.substringAfter(":").trim()
+                val fileName =
+                    file.nameWithoutExtension.substringAfter(
+                        ":"
+                    ).trim()
                 val fileExtension = file.extension
 
-                Toast.makeText(requireContext(), fileExtension, Toast.LENGTH_SHORT).show()
-
                 val mediaData =
-                    MediaData(null, sourceUri.toString(), null, fileExtension, null, null, null)
+                    MediaData(
+                        null,
+                        sourceUri.toString(),
+                        null,
+                        fileExtension,
+                        null,
+                        null,
+                        null
+                    )
 
-                val messageId = Firebase.firestore.collection("Chats").document().id
+                val messageId =
+                    Firebase.firestore.collection("Chats")
+                        .document().id
 
 
                 val message = Message(
                     fileName,
-                    currentUser!!.phone,
+                    "",
+                    currentUserId,
                     messageId,
                     "File",
                     replyMessageId,
@@ -780,11 +1015,18 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                     "Sending",
                     isGroupChat,
                     ArrayList(),
-                    mediaData
+                    ArrayList(),
+                    arrayListOf(mediaData)
                 )
                 messagesList.add(message)
-                adapter.notifyItemInserted(messagesList.indexOf(message))
-                chatRV.scrollToPosition(messagesList.indexOf(message))
+                chatAdapter.notifyItemInserted(
+                    messagesList.indexOf(message)
+                )
+                chatRV.scrollToPosition(
+                    messagesList.indexOf(
+                        message
+                    )
+                )
                 val pendingMessage =
                     PendingMessage(
                         0,
@@ -792,22 +1034,60 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                         collectionPath,
                         message
                     )
-                pendingMessagesVM.addMessageItem(pendingMessage)
+                pendingMessagesVM.addMessageItem(
+                    pendingMessage
+                )
             }
         }
 
+    private fun initializeWidgets(view: View) {
+        //Initialize Widgets
+        chatRV = view.findViewById(R.id.rv_chat)
+        selectedMediaRV = view.findViewById(R.id.rv_selected_media)
+        replyLayout = view.findViewById(R.id.cl_reply_text)
+        chatLayout = view.findViewById(R.id.cl_chat)
+        replyTextTV = view.findViewById(R.id.tv_chat_reply)
+        messageET = view.findViewById(R.id.et_chat_text)
+        sendMessageBtn = view.findViewById(R.id.btn_gc_send)
+        clearReplyBtn = view.findViewById(R.id.btn_clear_reply)
+        recordBtn = view.findViewById(R.id.btn_record_voice)
+        recordView = view.findViewById(R.id.record_view)
+        uploadMediaBtn = view.findViewById(R.id.btn_gc_image)
+        uploadFileBtn = view.findViewById(R.id.btn_gc_file)
+        headerImage = view.findViewById(R.id.iv_chat)
+        headerTitle = view.findViewById(R.id.tv_chat_name)
+        mentionsRV = view.findViewById(R.id.rv_mentions)
+        headerLayout = view.findViewById(R.id.layout_chat_header)
+        messageOptionsBtn = view.findViewById(R.id.btn_chat_menu)
+    }
+
     //UCrop Sh!t
-    private fun queryName(resolver: ContentResolver, uri: Uri): String {
-        val returnCursor = resolver.query(uri, null, null, null, null)
-        val nameIndex = returnCursor!!.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+    private fun queryName(
+        resolver: ContentResolver,
+        uri: Uri
+    ): String {
+        val returnCursor = resolver.query(
+            uri,
+            null,
+            null,
+            null,
+            null
+        )
+        val nameIndex =
+            returnCursor!!.getColumnIndex(
+                OpenableColumns.DISPLAY_NAME
+            )
         returnCursor.moveToFirst()
         val name = returnCursor.getString(nameIndex)
         returnCursor.close()
         return name
     }
 
-    private fun sendVoiceNote(audioDuration: Int) {
-        val file = File("${requireContext().externalCacheDir!!.absolutePath}/$voiceNoteId.3gp")
+    private fun sendVoiceNote(
+        audioDuration: Int
+    ) {
+        val file =
+            File("${requireContext().externalCacheDir!!.absolutePath}/$voiceNoteId.3gp")
         val uri = Uri.fromFile(file)
 
         requireContext().grantUriPermission(
@@ -816,13 +1096,22 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             Intent.FLAG_GRANT_READ_URI_PERMISSION
         )
 
-        val mediaData = MediaData(null, uri.toString(), null, null, 0, 0, audioDuration)
+        val mediaData = MediaData(
+            null,
+            uri.toString(),
+            null,
+            null,
+            0,
+            0,
+            audioDuration
+        )
 
 
         //Create message object
         val message = Message(
-            messageET.text.toString().trim(),
-            currentUser!!.phone,
+            "",
+            "",
+            currentUserId,
             voiceNoteId,
             "VoiceNote",
             replyMessageId,
@@ -830,12 +1119,21 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             "Sending",
             isGroupChat,
             ArrayList(),
-            mediaData
+            ArrayList(),
+            arrayListOf(mediaData)
         )
 
         messagesList.add(message)
-        adapter.notifyItemInserted(messagesList.indexOf(message))
-        chatRV.scrollToPosition(messagesList.indexOf(message))
+        chatAdapter.notifyItemInserted(
+            messagesList.indexOf(
+                message
+            )
+        )
+        chatRV.scrollToPosition(
+            messagesList.indexOf(
+                message
+            )
+        )
         val pendingMessage =
             PendingMessage(
                 0,
@@ -843,16 +1141,20 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                 collectionPath,
                 message
             )
-        pendingMessagesVM.addMessageItem(pendingMessage)
+        pendingMessagesVM.addMessageItem(
+            pendingMessage
+        )
     }
 
     private fun showReplyLayout(position: Int) {
-        val replyText = if (adapter.getItemById(position).message!!.isNotEmpty()) {
-            adapter.getItemById(position).message
-        } else {
-            getString(R.string.attachment_reply)
-        }
-        replyMessageId = adapter.getItemById(position).messageId
+        val replyText =
+            if (chatAdapter.getItemById(position).message!!.isNotEmpty()) {
+                chatAdapter.getItemById(position).message
+            } else {
+                getString(R.string.attachment_reply)
+            }
+        replyMessageId =
+            chatAdapter.getItemById(position).messageId
         //Set swiped message to reply TV
         replyTextTV.text = replyText
 
@@ -863,31 +1165,42 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         }
     }
 
-    private fun animateTranslation(translation: Int) {
+    private fun animateTranslation(
+        translation: Int
+    ) {
         if (replyLayout.visibility == INVISIBLE) {
             replyLayout.visibility = VISIBLE
         } else if (replyLayout.visibility == VISIBLE) {
             replyLayout.visibility = INVISIBLE
         }
 
-        val animation = ObjectAnimator.ofFloat(replyLayout, "translationY", translation.toFloat())
+        val animation = ObjectAnimator.ofFloat(
+            replyLayout,
+            "translationY",
+            translation.toFloat()
+        )
         animation.duration = 200
         animation.start()
     }
 
     private fun animateRV(isShowing: Boolean) {
-        val rvAnimation: Animation = object : Animation() {
-            override fun applyTransformation(interpolatedTime: Float, t: Transformation?) {
-                val params: ConstraintLayout.LayoutParams =
-                    chatRV.layoutParams as ConstraintLayout.LayoutParams
-                if (isShowing) {
-                    params.bottomMargin = (replyLayout.height + 30)
-                } else {
-                    params.bottomMargin = (0)
+        val rvAnimation: Animation =
+            object : Animation() {
+                override fun applyTransformation(
+                    interpolatedTime: Float,
+                    t: Transformation?
+                ) {
+                    val params: ConstraintLayout.LayoutParams =
+                        chatRV.layoutParams as ConstraintLayout.LayoutParams
+                    if (isShowing) {
+                        params.bottomMargin =
+                            (replyLayout.height + 30)
+                    } else {
+                        params.bottomMargin = (0)
+                    }
+                    chatRV.layoutParams = params
                 }
-                chatRV.layoutParams = params
             }
-        }
         rvAnimation.duration = 200
         rvAnimation.fillAfter = true
         chatRV.startAnimation(rvAnimation)
@@ -904,16 +1217,16 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
     }
 
     private fun expandEditText() {
-        uploadImageBtn.visibility = GONE
-        uploadVideoBtn.visibility = GONE
+        uploadMediaBtn.visibility = GONE
+        uploadFileBtn.visibility = GONE
         recordBtn.visibility = GONE
         sendMessageBtn.visibility = VISIBLE
     }
 
     private fun downscaleEditText() {
-        uploadImageBtn.visibility = VISIBLE
-        uploadVideoBtn.visibility = VISIBLE
+        uploadMediaBtn.visibility = VISIBLE
         recordBtn.visibility = VISIBLE
+        uploadFileBtn.visibility = VISIBLE
         sendMessageBtn.visibility = GONE
     }
 
@@ -921,14 +1234,14 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         if (hasConnection) {
             if (!isNew) {
                 //Get chat before date of first item
-                viewModel.getOlderChat(
+                chatViewModel.getOlderChat(
                     collectionPath,
                     chatId,
                     messagesList[0].date!!
                 )
             } else {
                 //Get chat after date of first item
-                viewModel.getNewerChat(
+                chatViewModel.getNewerChat(
                     collectionPath,
                     chatId,
                     messagesList.last().date!!
@@ -938,50 +1251,25 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         }
     }
 
-    private fun enlargeImage(imageLink: String) {
-        enlargedMediaLayout.visibility = VISIBLE
-        expandedImage.visibility = VISIBLE
-        Glide.with(expandedImage).load(imageLink).into(expandedImage)
-
-        enlargedMediaLayout.startAnimation(openImageAnim)
-        expandedImage.startAnimation(openImageAnim)
-    }
-
-    private fun closeExpandedImage() {
-        enlargedMediaLayout.visibility = GONE
-        expandedImage.visibility = GONE
-
-        enlargedMediaLayout.startAnimation(closeImageAnim)
-        expandedImage.startAnimation(closeImageAnim)
-    }
-
-    private fun enlargeVideo(videoLink: String?, videoPath: Uri?) {
-        enlargedMediaLayout.visibility = VISIBLE
-        expandedVideo.visibility = VISIBLE
-
-        if (videoLink != null) {
-            videoPlayer.setVideoLink(videoLink)
-        } else if (videoPath != null) {
-            videoPlayer.setVideoPath(videoPath)
-        }
-
-        enlargedMediaLayout.startAnimation(openImageAnim)
-        expandedVideo.startAnimation(openImageAnim)
-    }
-
-    private fun closeExpandedVideo() {
-        enlargedMediaLayout.visibility = GONE
-        expandedVideo.visibility = GONE
-
-        videoPlayer.stopMedia()
-
-        enlargedMediaLayout.startAnimation(closeImageAnim)
-        expandedVideo.startAnimation(closeImageAnim)
+    @SuppressLint("NotifyDataSetChanged")
+    private fun enlargeMedia(
+        mediaList: ArrayList<MediaData>?,
+        clickedItemIndex: Int,
+        postID: String
+    ) {
+        val args = Bundle()
+        args.putParcelableArrayList("MEDIA_LIST", mediaList)
+        args.putInt("CLICKED_ITEM_INDEX", clickedItemIndex)
+        args.putString("POST_ID", postID)
+        (activity as MainActivity).goToEnlargeMediaFragment(args)
     }
 
     private fun pauseAll(position: Int) {
-        for (i in 0 until adapter.itemCount) {
-            val viewHolder = chatRV.findViewHolderForAdapterPosition(i)
+        for (i in 0 until chatAdapter.itemCount) {
+            val viewHolder =
+                chatRV.findViewHolderForAdapterPosition(
+                    i
+                )
             if (viewHolder is ChatAdapter.VoiceViewHolder && i != position) {
                 viewHolder.playStateBtn.setImageDrawable(
                     (ContextCompat.getDrawable(
@@ -993,9 +1281,17 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         }
     }
 
-    private val activeScrollListener = object : RecyclerView.OnScrollListener() {
-        override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-            super.onScrollStateChanged(recyclerView, newState)
+    private
+    val activeScrollListener = object :
+        RecyclerView.OnScrollListener() {
+        override fun onScrollStateChanged(
+            recyclerView: RecyclerView,
+            newState: Int
+        ) {
+            super.onScrollStateChanged(
+                recyclerView,
+                newState
+            )
 
             if (messagesList.size > 0 && getMoreChat) {
                 if (linearLayoutManager.findFirstCompletelyVisibleItemPosition() == 0 && !chatReachedTop) {
@@ -1007,5 +1303,63 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                 }
             }
         }
+    }
+
+    private fun getMediaType(uri: Uri): String {
+        val type =
+            requireActivity().contentResolver.getType(
+                uri
+            )
+        return if (type != null && type.startsWith("image")) {
+            "Image"
+        } else if (type != null && type.startsWith("video")) {
+            "Video"
+        } else {
+            ""
+        }
+    }
+
+    private fun updateUsersList(userData: UserData) {
+        if (usersList.any { it.phone == userData.phone }) {
+            usersList.removeAll { it.phone == userData.phone }
+        }
+        usersList.add(userData)
+        chatAdapter.updateUserList(usersList)
+        updateMentionsUsersList()
+    }
+
+    //Functions for mentions
+    private fun showRecyclerView(
+        show: Boolean
+    ) {
+        if (show) {
+            mentionsRV.visibility =
+                VISIBLE
+        } else {
+            mentionsRV.visibility =
+                GONE
+        }
+    }
+
+    private fun setRecyclerViewData(
+        usersList: ArrayList<UserData>
+    ) {
+        mentionsRV.setRecyclerView(
+            usersList
+        )
+    }
+
+    private fun updateMentionsUsersList() {
+        messageET.editUsersList(
+            ArrayList(usersList)
+        )
+    }
+
+    private fun selectMentionedUser(
+        userData: UserData
+    ) {
+        messageET.selectMentionedUser(
+            userData
+        )
     }
 }

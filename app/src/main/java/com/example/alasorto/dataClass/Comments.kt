@@ -1,11 +1,15 @@
 package com.example.alasorto.dataClass
 
 import java.util.*
+import kotlin.collections.ArrayList
 
 data class Comments(
-    val postID: String? = null,
-    val comment: String? = null,
-    val ownerID: String? = null,
-    val commentID: String? = null,
-    val date: Date? = null
+    var postId: String = "",
+    var comment: String = "",
+    var textWithTags: String = "",
+    var ownerId: String = "",
+    var commentId: String = "",
+    var date: Date? = null,
+    var media: MediaData? = null,
+    var mentionsList: ArrayList<String> = ArrayList()
 )

@@ -1,25 +1,39 @@
 package com.example.alasorto.notification
 
 import android.app.Application
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context.NOTIFICATION_SERVICE
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import com.example.alasorto.AuthActivity
+import com.example.alasorto.MainActivity
 import com.example.alasorto.R
 import java.util.*
 import javax.inject.Inject
+import kotlin.collections.HashMap
 
 class MyNotificationManager @Inject constructor(private val mCtx: Application) {
 
-    fun textNotification(title: String?, message: String?) {
+    fun textNotification(title: String?, message: String?, map: String?) {
         val rand = Random()
         val idNotification = rand.nextInt(1000000000)
 
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         val notificationManager = mCtx.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+
+        val intent = Intent(mCtx, AuthActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        intent.putExtra("DATA_MAP", map)
+
+        val pendingIntent =
+            PendingIntent.getActivity(mCtx, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationChannel = NotificationChannel(
                 "Channel_id_default", "Channel_name_default", NotificationManager.IMPORTANCE_HIGH
@@ -46,6 +60,9 @@ class MyNotificationManager @Inject constructor(private val mCtx: Application) {
             .setSound(soundUri)
             .setContentTitle(title)
             .setContentText(message)
+
+        notificationBuilder.setContentIntent(pendingIntent)
+
         notificationManager.notify(idNotification, notificationBuilder.build())
     }
 

@@ -106,7 +106,6 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
             if (it != null && it.size > 0) {
                 attendanceList.clear()
                 attendanceList.addAll(it)
-                Toast.makeText(requireContext(), it.size.toString(), Toast.LENGTH_SHORT).show()
                 attHistoryAdapter.setAttendanceList(it)
             } else {
                 Toast.makeText(
@@ -269,13 +268,16 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
             searchByDateBtn.visibility = View.GONE
             getAllAttendanceBtn.visibility = View.GONE
             pendingAttendanceBtn.visibility = View.GONE
+            newAttBtn.visibility = View.GONE
             attHistoryRV.visibility = View.GONE
             attUsersRV.visibility = View.VISIBLE
             editUsersBtn.visibility = View.VISIBLE
             attHistoryRV.startAnimation(fadeOut)
             searchByDateBtn.startAnimation(fadeOut)
             getAllAttendanceBtn.startAnimation(fadeOut)
-            attUsersRV.startAnimation(fadeIn)
+            pendingAttendanceBtn.startAnimation(fadeIn)
+            newAttBtn.startAnimation(fadeOut)
+            attUsersRV.startAnimation(fadeOut)
             editUsersBtn.startAnimation(fadeIn)
             "${currentAttendance.day}/${currentAttendance.month}/${currentAttendance.year}"
                 .also {
@@ -289,11 +291,14 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
             attHistoryRV.visibility = View.VISIBLE
             getAllAttendanceBtn.visibility = View.VISIBLE
             pendingAttendanceBtn.visibility = View.VISIBLE
+            newAttBtn.visibility = View.VISIBLE
             attUsersRV.visibility = View.GONE
             editUsersBtn.visibility = View.GONE
             searchByDateBtn.startAnimation(fadeIn)
             attHistoryRV.startAnimation(fadeIn)
             getAllAttendanceBtn.startAnimation(fadeIn)
+            pendingAttendanceBtn.startAnimation(fadeIn)
+            newAttBtn.startAnimation(fadeIn)
             attUsersRV.startAnimation(fadeOut)
             editUsersBtn.startAnimation(fadeOut)
             headerTV.setText(R.string.att_history)
@@ -314,6 +319,16 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
         builder.setMessage(R.string.delete_attendance_confirmation)
         builder.setPositiveButton(R.string.yes) { _, _ ->
             (activity as MainActivity).showLoadingDialog()
+
+            if (pendingAttendanceList.contains(attendance)) {// If offline database -> remove from offline database
+                val pendingAttendance = pendingList.first { it.attendance == attendance }
+                pendingAttViewModel.deleteAttendance(pendingAttendance)
+                val deletedItemIndex = attendanceList.indexOf(attendance)
+                attendanceList.remove(attendance)
+                attHistoryAdapter.notifyItemRemoved(deletedItemIndex)
+                (activity as MainActivity).dismissLoadingDialog()
+            }
+
             if (attendanceList.contains(attendance)) {//Check if attendance is from online or offline database
                 // If online database -> remove from online database
                 if (hasConnection) {
@@ -333,10 +348,6 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
                     )
                         .show()
                 }
-            } else if (pendingAttendanceList.contains(attendance)) {// If offline database -> remove from offline database
-                val pendingAttendance = pendingList.first { it.attendance == attendance }
-                pendingAttViewModel.deleteAttendance(pendingAttendance)
-                (activity as MainActivity).dismissLoadingDialog()
             }
         }
         builder.setNegativeButton(R.string.no) { _, _ -> }

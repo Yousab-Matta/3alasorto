@@ -5,8 +5,10 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -111,6 +113,16 @@ class SplashScreenFragment : Fragment() {
     }
 
     private fun startWriteStoragePermissionRequest() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val uri = Uri.parse("package:${BuildConfig.APPLICATION_ID}")
+
+            startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    uri
+                )
+            )
+        }
         requestPermissionLauncher.launch(WRITE_EXTERNAL_STORAGE)
     }
 
@@ -139,6 +151,9 @@ class SplashScreenFragment : Fragment() {
     private fun goToMainActivity() {
         val intent = Intent(requireActivity(), MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (this.arguments != null) {
+            intent.putExtras(this.arguments!!)
+        }
         startActivity(intent)
         requireActivity().finish()
     }

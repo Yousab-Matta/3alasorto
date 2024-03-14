@@ -17,11 +17,10 @@ import com.example.alasorto.dataClass.UserData
 
 class AllUsersAdapter(
     usersList: ArrayList<UserData>,
-    private val selectedUsersList: ArrayList<UserData>,
-    private val onClickListener: OnClickListener,
-    private val onLongClickListener: OnLongClickListener,
     private val access: ArrayList<String>,
     private val context: Context,
+    private val goToUserProfile: (UserData) -> Unit,
+    private val setSelectedUserCounterText: () -> Unit
 ) : RecyclerView.Adapter<AllUsersAdapter.ViewHolder>() {
 
     companion object {
@@ -29,7 +28,49 @@ class AllUsersAdapter(
         private const val ITEM_TYPE_ADMIN_ITEM = 1
     }
 
+    private val selectedUsersList = ArrayList<UserData>()
+
     private var filteredUsersList: ArrayList<UserData> = usersList
+    private var isSelectionEnabled = false
+
+    fun selectAllUsers() {
+        selectedUsersList.clear()
+        selectedUsersList.addAll(filteredUsersList)
+        setSelectedUserCounterText()
+
+        notifyItemRangeChanged(0, itemCount)
+    }
+
+    fun clearAllUsersSelection() {
+        selectedUsersList.clear()
+        notifyItemRangeChanged(0, itemCount)
+        setSelectedUserCounterText()
+        isSelectionEnabled = false
+    }
+
+    fun getSelectedUsersCount(): Int = selectedUsersList.size
+
+    fun getSelectedUsers(): ArrayList<UserData> = selectedUsersList
+
+    fun selectUser(userId: String) {
+        isSelectionEnabled = true
+
+        if (!selectedUsersList.any { it.phone == userId }) {
+            selectedUsersList.add(filteredUsersList.first { it.phone == userId })
+        } else {
+            selectedUsersList.remove(filteredUsersList.first { it.phone == userId })
+        }
+
+        if (filteredUsersList.any { it.phone == userId }) {
+            notifyItemChanged(filteredUsersList.indexOfFirst { it.phone == userId })
+        }
+
+        setSelectedUserCounterText()
+
+        if (selectedUsersList.isEmpty()) {
+            isSelectionEnabled = false
+        }
+    }
 
     override fun getItemViewType(position: Int): Int {
         return if (!access.contains("HANDLE_USERS")) {
@@ -43,18 +84,17 @@ class AllUsersAdapter(
         return if (viewType == ITEM_TYPE_USER_ITEM) {
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_user, parent, false)
-            ViewHolder(view, onClickListener, onLongClickListener, this)
+            ViewHolder(view, this)
         } else {
             val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_user_admin, parent, false)
-            ViewHolder(view, onClickListener, onLongClickListener, this)
+            ViewHolder(view, this)
         }
     }
 
     @SuppressLint("UseCompatLoadingForColorStateLists")
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val user = filteredUsersList[position]
-
 
         if (selectedUsersList.contains(user)) {
             holder.userDataRl.backgroundTintList =
@@ -94,8 +134,6 @@ class AllUsersAdapter(
 
     class ViewHolder(
         itemView: View,
-        private val mClickListener: OnClickListener,
-        private val mLongClickListener: OnLongClickListener,
         private val adapter: AllUsersAdapter,
     ) :
         RecyclerView.ViewHolder(itemView), View.OnClickListener, View.OnLongClickListener {
@@ -112,21 +150,18 @@ class AllUsersAdapter(
 
         override fun onClick(p0: View?) {
             val selectedUser = adapter.getFilteredList()[layoutPosition]
-            mClickListener.onClick(selectedUser)
+
+            if (adapter.isSelectionEnabled) {
+                adapter.selectUser(selectedUser.phone)
+            } else {
+                adapter.goToUserProfile(selectedUser)
+            }
         }
 
         override fun onLongClick(p0: View?): Boolean {
             val selectedUser = adapter.getFilteredList()[layoutPosition]
-            mLongClickListener.onLongClick(selectedUser)
+            adapter.selectUser(selectedUser.phone)
             return true
         }
-    }
-
-    interface OnClickListener {
-        fun onClick(user: UserData)
-    }
-
-    interface OnLongClickListener {
-        fun onLongClick(user: UserData)
     }
 }

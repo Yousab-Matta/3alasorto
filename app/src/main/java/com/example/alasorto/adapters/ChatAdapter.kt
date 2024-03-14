@@ -2,46 +2,51 @@ package com.example.alasorto.adapters
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.media.MediaPlayer
 import android.media.MediaPlayer.OnPreparedListener
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.View.*
 import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+import java.util.ArrayList
 import android.widget.*
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.compose.ui.input.key.Key.Companion.F
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.example.alasorto.R
+import com.example.alasorto.dataClass.MediaData
 import com.example.alasorto.dataClass.Message
 import com.example.alasorto.dataClass.UserData
-import com.google.android.material.imageview.ShapeableImageView
+import com.example.alasorto.utils.MentionTextView
+import com.example.alasorto.utils.PostMediaLayout
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.HashMap
 
 class ChatAdapter(
-    private val chatList: ArrayList<Message>,
-    private val chatOwnersList: ArrayList<UserData>,
+    private val messagesList: ArrayList<Message>,
     private val myId: String,
     private val context: Context,
     private val scrollAllowed: (Boolean) -> Unit,
     private val getReply: (Message) -> Unit,
     private val pauseMedia: (Int) -> Unit,
-    private val enlargeImage: (String) -> Unit,
-    private val enlargeVideo: (String?, Uri?) -> Unit,
+    private var enlargeMedia: (ArrayList<MediaData>?, Int, String) -> Unit,
+    private val downloadMedia: (Message) -> Unit,
+    private val changeMessageDetailsVisibility: (Boolean) -> Unit,
     private val isAnonymous: Boolean
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>(), OnPreparedListener,
     MediaPlayer.OnCompletionListener {
 
-    private val chatRepliesList = HashMap<String, Message>()
+    private val chatRepliesList = ArrayList<Message>()
 
+    private var selectedMessage: Message? = null
     private var audioHolder: VoiceViewHolder? = null
     private var currentAudioPath = ""
 
@@ -60,6 +65,8 @@ class ChatAdapter(
         private const val FILE_ITEM_LEFT = 8
         private const val FILE_ITEM_RIGHT = 9
     }
+
+    private var usersList = ArrayList<UserData>()
 
     private val locale = (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         context.resources.configuration.locales.get(0)
@@ -81,7 +88,7 @@ class ChatAdapter(
     }
 
     override fun getItemViewType(position: Int): Int {
-        val message = chatList[position]
+        val message = messagesList[position]
         return if (message.ownerId == myId && message.messageType == "Text") {
             TEXT_ITEM_RIGHT
         } else if (message.ownerId != myId && message.messageType == "Text") {
@@ -131,30 +138,6 @@ class ChatAdapter(
                 view.layoutDirection = otherMessageDirection
                 VoiceViewHolder(view, this)
             }
-            IMAGE_ITEM_LEFT -> {
-                val view = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.item_chat_image, parent, false)
-                view.layoutDirection = myMessageDirection
-                ImageViewHolder(view, this)
-            }
-            IMAGE_ITEM_RIGHT -> {
-                val view = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.item_chat_image, parent, false)
-                view.layoutDirection = otherMessageDirection
-                ImageViewHolder(view, this)
-            }
-            VIDEO_ITEM_LEFT -> {
-                val view = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.item_chat_video, parent, false)
-                view.layoutDirection = myMessageDirection
-                VideoViewHolder(view, this)
-            }
-            VIDEO_ITEM_RIGHT -> {
-                val view = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.item_chat_video, parent, false)
-                view.layoutDirection = otherMessageDirection
-                VideoViewHolder(view, this)
-            }
             FILE_ITEM_LEFT -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_chat_file, parent, false)
@@ -170,8 +153,29 @@ class ChatAdapter(
         }
     }
 
+    fun selectMessage(messageId: String) {
+        if (messagesList.any { it.messageId == messageId }) {
+            changeMessageDetailsVisibility(true)
+            selectedMessage = messagesList.first { it.messageId == messageId }
+            notifyItemChanged(messagesList.indexOfFirst { it.messageId == messageId })
+        }
+    }
+
+    fun areMessagesSelected(): Boolean = selectedMessage != null
+
+    fun removeSelectedMessage() {
+        changeMessageDetailsVisibility(false)
+        if (selectedMessage != null) {
+            val messageId = selectedMessage!!.messageId
+            selectedMessage = null
+            notifyItemChanged(messagesList.indexOfFirst { it.messageId == messageId })
+        }
+    }
+
+    fun getSelectedMessage(): Message? = selectedMessage
+
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val chatItem = chatList[position]
+        val chatItem = messagesList[position]
 
         if (getItemViewType(position) == TEXT_ITEM_LEFT || getItemViewType(position) == TEXT_ITEM_RIGHT) {
             (holder as TextViewHolder).bind(chatItem)
@@ -181,79 +185,96 @@ class ChatAdapter(
             (holder as VoiceViewHolder).bind(chatItem)
         }
 
-        if (getItemViewType(position) == IMAGE_ITEM_LEFT || getItemViewType(position) == IMAGE_ITEM_RIGHT) {
-            (holder as ImageViewHolder).bind(chatItem)
-        }
-
-        if (getItemViewType(position) == VIDEO_ITEM_LEFT || getItemViewType(position) == VIDEO_ITEM_RIGHT) {
-            (holder as VideoViewHolder).bind(chatItem)
-        }
-
         if (getItemViewType(position) == FILE_ITEM_LEFT || getItemViewType(position) == FILE_ITEM_RIGHT) {
             (holder as FileViewHolder).bind(chatItem)
         }
     }
 
     override fun getItemCount(): Int {
-        return chatList.size
+        return messagesList.size
     }
 
     fun getItemById(position: Int): Message {
-        return chatList[position]
+        return messagesList[position]
     }
 
     fun updatePlayingItem(path: String, messageId: String) {
         if (currentAudioPath != messageId) {
             mediaPlayer.reset()
             currentAudioPath = messageId
-            mediaPlayer.setDataSource(path)
-            mediaPlayer.prepareAsync()
-            mediaPlayer.setOnPreparedListener(this)
-            mediaPlayer.setOnCompletionListener(this)
+            if (File(path).exists()) {
+                mediaPlayer.setDataSource(path)
+                mediaPlayer.prepareAsync()
+                mediaPlayer.setOnPreparedListener(this)
+                mediaPlayer.setOnCompletionListener(this)
+            }
         }
     }
 
-    fun updateRepliesList(replyId: String, repliedMessage: Message) {
-        if (!chatRepliesList.containsKey(replyId)) {
-            chatRepliesList[replyId] = repliedMessage
-            if (chatList.any { it.repliedMessageId.contains(replyId) }) {
-                val updatedList =
-                    chatList.filter { it.repliedMessageId.contains(it.messageId) }
-                for (message in updatedList) {
-                    notifyItemChanged(chatList.indexOf(message))
-                }
+    fun updateRepliesList(newReply: Message) {
+        if (chatRepliesList.any { it.messageId == newReply.messageId }) {
+            val oldReply = chatRepliesList.first { it.messageId == newReply.messageId }
+            if (oldReply != newReply) {
+                val index = chatRepliesList.indexOf(oldReply)
+                chatRepliesList.removeAt(index)
+            }
+        }
+        chatRepliesList.add(newReply)
+
+        if (messagesList.any { it.repliedMessageId == newReply.messageId }) {
+            val messagesWithReply =
+                messagesList.filter { it.repliedMessageId == newReply.messageId }
+            for (message in messagesWithReply) {
+                notifyItemRangeChanged(0, itemCount)
             }
         }
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    fun updateList(messageLists: ArrayList<Message>) {
-        chatList.clear()
-        chatList.addAll(messageLists)
+    fun updateChatList(messageLists: ArrayList<Message>) {
+        messagesList.clear()
+        messagesList.addAll(messageLists)
+        notifyItemRangeChanged(0, itemCount)
+    }
+
+    fun updateUserList(newUsersList: ArrayList<UserData>) {
+        usersList = newUsersList
         notifyItemRangeChanged(0, itemCount)
     }
 
     class TextViewHolder(itemView: View, adapter: ChatAdapter) :
-        RecyclerView.ViewHolder(itemView), OnClickListener {
+        RecyclerView.ViewHolder(itemView), OnClickListener, OnLongClickListener {
 
         private var replyMessage: Message? = null
+        private var currentMessageId: String = ""
 
         private val mAdapter = adapter
 
+        private val parentLayout: ConstraintLayout = itemView.findViewById(R.id.layout_parent)
+        private val layoutContainer: ConstraintLayout =
+            itemView.findViewById(R.id.layout_message_container)
         private val chatOwnerTV: TextView = itemView.findViewById(R.id.tv_chat_name)
-        private val chatReplyTV: TextView = itemView.findViewById(R.id.tv_chat_reply)
-        private val chatMessage: TextView = itemView.findViewById(R.id.tv_chat_message)
+        private val chatReplyTV: MentionTextView = itemView.findViewById(R.id.tv_chat_reply)
+        private val chatTextTV: MentionTextView = itemView.findViewById(R.id.tv_chat_message)
         private val timeTV: TextView = itemView.findViewById(R.id.tv_message_time)
         private val messageStatus: ImageView = itemView.findViewById(R.id.iv_message_status)
+        private val mediaLayout: ConstraintLayout = itemView.findViewById(R.id.layout_media)
+        private val postMediaLayout = PostMediaLayout(itemView.context)
 
         init {
             chatReplyTV.setOnClickListener(this)
             if (mAdapter.isAnonymous) {
                 chatOwnerTV.visibility = GONE
             }
+            itemView.setOnLongClickListener(this)
+            itemView.setOnClickListener(this)
         }
 
+        @SuppressLint("UseCompatLoadingForColorStateLists")
         fun bind(message: Message) {
+
+            currentMessageId = message.messageId
+
             if (message.ownerId != mAdapter.myId) {
                 messageStatus.visibility = GONE
             } else {
@@ -285,14 +306,79 @@ class ChatAdapter(
                 }
             }
 
+            if (mAdapter.selectedMessage != null && mAdapter.selectedMessage!!.messageId == message.messageId) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    parentLayout.backgroundTintList = mAdapter.context.resources.getColorStateList(
+                        R.color.text_color,
+                        mAdapter.context.theme
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    parentLayout.backgroundTintList =
+                        mAdapter.context.resources.getColorStateList(R.color.text_color)
+                }
+
+                parentLayout.alpha = .3f
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    parentLayout.backgroundTintList = mAdapter.context.resources.getColorStateList(
+                        android.R.color.transparent,
+                        mAdapter.context.theme
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    parentLayout.backgroundTintList =
+                        mAdapter.context.resources.getColorStateList(android.R.color.transparent)
+                }
+
+                parentLayout.alpha = 1f
+            }
+
+            val params = layoutContainer.layoutParams as ConstraintLayout.LayoutParams
+            params.width = 0
+            if (message.mediaData.isNotEmpty()) {
+                mediaLayout.removeAllViews()
+
+                mediaLayout.visibility = VISIBLE
+                postMediaLayout.setView(
+                    message.messageId,
+                    message.mediaData,
+                    mediaLayout,
+                    mAdapter.enlargeMedia
+                )
+            } else {
+                params.width = WRAP_CONTENT
+                mediaLayout.visibility = GONE
+            }
+            layoutContainer.requestLayout()
+
+
             if (message.repliedMessageId.isNotEmpty()) {
                 chatReplyTV.visibility = VISIBLE //Show reply TV
 
                 //If Replied message is text show it in the TV
-                if (mAdapter.chatRepliesList.containsKey(message.messageId)) {
-                    replyMessage = mAdapter.chatRepliesList[message.messageId]
+                if (mAdapter.chatRepliesList.any { it.messageId == message.repliedMessageId }) {
+                    replyMessage =
+                        mAdapter.chatRepliesList.first { it.messageId == message.repliedMessageId }
                     if (replyMessage != null && replyMessage!!.message!!.isNotEmpty()) {
-                        chatReplyTV.text = replyMessage!!.message
+
+                        //Create a list of user data to use in mention text view
+                        val mentionedUsersDataList = ArrayList<UserData>()
+
+                        if (message.mentions.isNotEmpty()) {
+                            for (userId in message.mentions) {
+                                if (mAdapter.usersList.any { it.phone == userId } && !mentionedUsersDataList.any { it.phone == userId }) {
+                                    mentionedUsersDataList.add(mAdapter.usersList.first { it.phone == userId })
+                                }
+                            }
+                        }
+
+                        chatReplyTV.setDescription(
+                            replyMessage!!.message!!,
+                            replyMessage!!.textWithTags!!,
+                            message.mentions,
+                            mentionedUsersDataList
+                        )
 
                         //Else show "Replying to attachment" text instead
                     } else if (replyMessage != null && replyMessage!!.message!!.isEmpty()) {
@@ -300,28 +386,67 @@ class ChatAdapter(
                             .also { chatReplyTV.text = it }
                     }
                 }
+            } else {
+                chatReplyTV.visibility = GONE
             }
 
             timeTV.text = mAdapter.sdf.format(message.date!!)
 
-            chatMessage.text = message.message
+            //Create a list of user data to use in mention text view
+            val mentionedUsersDataList = ArrayList<UserData>()
 
-            val owner = mAdapter.chatOwnersList.first { it.phone.contains(message.ownerId) }
-            chatOwnerTV.text = owner.name
-        }
-
-        override fun onClick(v: View?) {
-            if (v == chatReplyTV) {
-                if (replyMessage != null) {
-                    mAdapter.getReply(replyMessage!!)
+            if (message.mentions.isNotEmpty()) {
+                for (userId in message.mentions) {
+                    if (mAdapter.usersList.any { it.phone == userId } && !mentionedUsersDataList.any { it.phone == userId }) {
+                        mentionedUsersDataList.add(mAdapter.usersList.first { it.phone == userId })
+                    }
                 }
             }
+
+            if (!message.message.isNullOrEmpty()) {
+                chatTextTV.visibility = VISIBLE
+                chatTextTV.setDescription(
+                    message.message!!,
+                    message.textWithTags!!,
+                    message.mentions,
+                    mentionedUsersDataList
+                )
+            } else {
+                chatTextTV.visibility = GONE
+            }
+
+            if (mAdapter.usersList.any { it.phone.contains(message.ownerId) }) {
+                val messageOwnerName =
+                    mAdapter.usersList.first { it.phone.contains(message.ownerId) }.name
+                chatOwnerTV.text = messageOwnerName
+            }
+        }
+
+
+        override fun onClick(v: View?) {
+            if (mAdapter.selectedMessage == null) {
+                if (v == chatReplyTV) {
+                    if (replyMessage != null) {
+                        mAdapter.getReply(replyMessage!!)
+                    }
+                }
+            } else {
+                mAdapter.removeSelectedMessage()
+            }
+        }
+
+        override fun onLongClick(v: View?): Boolean {
+            if (currentMessageId.isNotEmpty()) {
+                mAdapter.removeSelectedMessage()
+                mAdapter.selectMessage(currentMessageId)
+            }
+            return true
         }
     }
 
     @SuppressLint("ClickableViewAccessibility")
     class VoiceViewHolder(itemView: View, adapter: ChatAdapter) :
-        RecyclerView.ViewHolder(itemView), OnClickListener, OnTouchListener {
+        RecyclerView.ViewHolder(itemView), OnClickListener, OnTouchListener, OnLongClickListener {
 
         private val mAdapter = adapter
 
@@ -330,12 +455,14 @@ class ChatAdapter(
         val timerTV: TextView = itemView.findViewById(R.id.tv_seek_time)
 
         private val chatOwnerTV: TextView = itemView.findViewById(R.id.tv_chat_name)
-        private val chatReplyTV: TextView = itemView.findViewById(R.id.tv_chat_reply)
+        private val chatReplyTV: MentionTextView = itemView.findViewById(R.id.tv_chat_reply)
         private val timeTV: TextView = itemView.findViewById(R.id.tv_message_time)
         private val progressBar: ProgressBar = itemView.findViewById(R.id.progress_bar)
         private val messageStatus: ImageView = itemView.findViewById(R.id.iv_message_status)
+        private val parentLayout: ConstraintLayout = itemView.findViewById(R.id.layout_parent)
 
         private var replyMessage: Message? = null
+        private var currentMessageId: String = ""
 
         var audioDuration = 0
         var currentMessage: Message? = null
@@ -344,6 +471,9 @@ class ChatAdapter(
             //Set on Click Listeners for widgets
             playStateBtn.setOnClickListener(this)
             chatReplyTV.setOnClickListener(this)
+
+            itemView.setOnLongClickListener(this)
+            itemView.setOnClickListener(this)
 
             //Set on Click Listeners for widgets
             seekBar.setOnTouchListener(this)
@@ -380,7 +510,10 @@ class ChatAdapter(
             })
         }
 
+        @SuppressLint("UseCompatLoadingForColorStateLists")
         fun bind(message: Message) {
+            currentMessageId = message.messageId
+
             currentMessage = message
 
             if (message.ownerId != mAdapter.myId) {
@@ -414,13 +547,41 @@ class ChatAdapter(
                 }
             }
 
+            if (mAdapter.selectedMessage != null && mAdapter.selectedMessage!!.messageId == message.messageId) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    parentLayout.backgroundTintList = mAdapter.context.resources.getColorStateList(
+                        R.color.text_color,
+                        mAdapter.context.theme
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    parentLayout.backgroundTintList =
+                        mAdapter.context.resources.getColorStateList(R.color.text_color)
+                }
+
+                parentLayout.alpha = .3f
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    parentLayout.backgroundTintList = mAdapter.context.resources.getColorStateList(
+                        android.R.color.transparent,
+                        mAdapter.context.theme
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    parentLayout.backgroundTintList =
+                        mAdapter.context.resources.getColorStateList(android.R.color.transparent)
+                }
+
+                parentLayout.alpha = 1f
+            }
+
             //Show play button and hide progress if message is loaded
-            if (message.mediaData!!.media != null && message.mediaData!!.media!!.isNotEmpty()) {
+            if (message.mediaData.isNotEmpty() && !message.mediaData[0].media.isNullOrEmpty()) {
                 progressBar.visibility = GONE
                 playStateBtn.visibility = VISIBLE
 
-                audioDuration = message.mediaData!!.duration!!
-                seekBar.max = audioDuration
+                audioDuration = message.mediaData[0].duration!!
+                seekBar.max = audioDuration - 500
 
                 "00:00 / ${mAdapter.convertLongToTime(audioDuration.toLong())}"
                     .also { timerTV.text = it }
@@ -433,60 +594,93 @@ class ChatAdapter(
             if (message.repliedMessageId.isNotEmpty()) {
                 chatReplyTV.visibility = VISIBLE //Show reply TV
                 //If Replied message is text show it in the TV
-                if (mAdapter.chatRepliesList.containsKey(message.messageId))
-                    replyMessage = mAdapter.chatRepliesList[message.messageId]
-                if (replyMessage!!.message!!.isNotEmpty()) {
-                    chatReplyTV.text = replyMessage!!.message
-                } else { //Else show "Replying to attachment" text instead
-                    mAdapter.context.getText(R.string.attachment_reply)
-                        .also { chatReplyTV.text = it }
+                if (mAdapter.chatRepliesList.any { it.messageId == message.repliedMessageId }) {
+                    replyMessage =
+                        mAdapter.chatRepliesList.first { it.messageId == message.repliedMessageId }
+                    if (replyMessage != null && replyMessage!!.message!!.isNotEmpty()) {
+
+                        //Create a list of user data to use in mention text view
+                        val mentionedUsersDataList = ArrayList<UserData>()
+
+                        if (message.mentions.isNotEmpty()) {
+                            for (userId in message.mentions) {
+                                if (mAdapter.usersList.any { it.phone == userId } && !mentionedUsersDataList.any { it.phone == userId }) {
+                                    mentionedUsersDataList.add(mAdapter.usersList.first { it.phone == userId })
+                                }
+                            }
+                        }
+
+                        chatReplyTV.setDescription(
+                            replyMessage!!.message!!,
+                            replyMessage!!.textWithTags!!,
+                            message.mentions,
+                            mentionedUsersDataList
+                        )
+
+                        //Else show "Replying to attachment" text instead
+                    } else if (replyMessage != null && replyMessage!!.message!!.isEmpty()) {
+                        mAdapter.context.getText(R.string.attachment_reply)
+                            .also { chatReplyTV.text = it }
+                    }
                 }
             }
 
-            val owner = mAdapter.chatOwnersList.first { it.phone.contains(message.ownerId) }
-            chatOwnerTV.text = owner.name
+            if (mAdapter.usersList.any { it.phone.contains(message.ownerId) }) {
+                val messageOwnerName =
+                    mAdapter.usersList.first { it.phone.contains(message.ownerId) }.name
+                chatOwnerTV.text = messageOwnerName
+            }
         }
 
         override fun onClick(p0: View?) {
-            if (p0 == playStateBtn) {
 
-                if (currentMessage!!.mediaData!!.media != null && !mAdapter.isSameItemPlaying(
-                        currentMessage!!.messageId
-                    )
-                ) {
-                    mAdapter.audioHolder = this
-                    mAdapter.updatePlayingItem(
-                        currentMessage!!.mediaData!!.media!!,
-                        currentMessage!!.messageId
-                    )
-                    mAdapter.pauseMedia(adapterPosition)
+            if (mAdapter.selectedMessage == null) {
+                if (p0 == playStateBtn) {
+
+                    if (currentMessage != null) {
+
+                        if (currentMessage!!.mediaData.isNotEmpty() && !currentMessage!!.mediaData[0].media.isNullOrEmpty()
+                            && !mAdapter.isSameItemPlaying(
+                                currentMessage!!.messageId
+                            )
+                        ) {
+                            mAdapter.audioHolder = this
+                            mAdapter.updatePlayingItem(
+                                currentMessage!!.mediaData[0].media!!,
+                                currentMessage!!.messageId
+                            )
+                            mAdapter.pauseMedia(adapterPosition)
+                        }
+                    }
+
+                    if (mAdapter.mediaPlayer.isPlaying) {
+                        mAdapter.mediaPlayer.pause()
+
+                        playStateBtn.setImageDrawable(
+                            (ContextCompat.getDrawable(
+                                mAdapter.context,
+                                R.drawable.ic_play
+                            ))
+                        )
+                    } else {
+                        mAdapter.mediaPlayer.start()
+
+                        playStateBtn.setImageDrawable(
+                            (ContextCompat.getDrawable(
+                                mAdapter.context,
+                                R.drawable.ic_pause
+                            ))
+                        )
+                    }
+
+                    //mAdapter.pauseMedia(adapterPosition)
+                } else if (p0 == chatReplyTV) {
+                    if (replyMessage != null) {
+                        mAdapter.getReply(replyMessage!!)
+                    }
                 }
-
-                if (mAdapter.mediaPlayer.isPlaying) {
-                    mAdapter.mediaPlayer.pause()
-
-                    playStateBtn.setImageDrawable(
-                        (ContextCompat.getDrawable(
-                            mAdapter.context,
-                            R.drawable.ic_play
-                        ))
-                    )
-                } else {
-                    mAdapter.mediaPlayer.start()
-
-                    playStateBtn.setImageDrawable(
-                        (ContextCompat.getDrawable(
-                            mAdapter.context,
-                            R.drawable.ic_pause
-                        ))
-                    )
-                }
-
-                //mAdapter.pauseMedia(adapterPosition)
-            } else if (p0 == chatReplyTV) {
-                if (replyMessage != null) {
-                    mAdapter.getReply(replyMessage!!)
-                }
+            } else {
+                mAdapter.removeSelectedMessage()
             }
         }
 
@@ -499,196 +693,47 @@ class ChatAdapter(
             }
             return false
         }
-    }
 
-    //ToDo: reply TV
-    @SuppressLint("ClickableViewAccessibility")
-    class ImageViewHolder(itemView: View, adapter: ChatAdapter) :
-        RecyclerView.ViewHolder(itemView), OnClickListener {
-
-        var maxWidth: Int = 0
-
-        private val mAdapter = adapter
-        private var message: Message? = null
-
-        private val chatOwnerTV: TextView = itemView.findViewById(R.id.tv_chat_name)
-        private val chatImageIV: ShapeableImageView = itemView.findViewById(R.id.iv_chat)
-        private val timeTV: TextView = itemView.findViewById(R.id.tv_message_time)
-        private val messageStatus: ImageView = itemView.findViewById(R.id.iv_message_status)
-
-        init {
-            if (mAdapter.isAnonymous) {
-                chatOwnerTV.visibility = GONE
+        override fun onLongClick(v: View?): Boolean {
+            if (currentMessageId.isNotEmpty()) {
+                mAdapter.removeSelectedMessage()
+                mAdapter.selectMessage(currentMessageId)
             }
-            chatImageIV.setOnClickListener(this)
-        }
-
-        fun bind(message: Message) {
-            this.message = message
-
-            if (message.ownerId != mAdapter.myId) {
-                messageStatus.visibility = GONE
-            } else {
-                when (message.status) {
-                    "Delivered" -> {
-                        messageStatus.setImageDrawable(
-                            AppCompatResources.getDrawable(
-                                mAdapter.context,
-                                R.drawable.ic_check
-                            )
-                        )
-                    }
-                    "Seen" -> {
-                        messageStatus.setImageDrawable(
-                            AppCompatResources.getDrawable(
-                                mAdapter.context,
-                                R.drawable.ic_seen
-                            )
-                        )
-                    }
-                    "Sending" -> {
-                        messageStatus.setImageDrawable(
-                            AppCompatResources.getDrawable(
-                                mAdapter.context,
-                                R.drawable.ic_sending
-                            )
-                        )
-                    }
-                }
-            }
-
-            timeTV.text = mAdapter.sdf.format(message.date!!)
-
-            val owner = mAdapter.chatOwnersList.first { it.phone.contains(message.ownerId) }
-            chatOwnerTV.text = owner.name
-
-            if (message.mediaData != null) {
-
-                val mediaLink: String? = message.mediaData!!.mediaLink
-
-
-                if (mediaLink != null && mediaLink.isNotEmpty()) {
-                    Glide.with(chatImageIV).load(mediaLink).into(chatImageIV)
-
-                    val width = message.mediaData!!.width
-                    val height = message.mediaData!!.height
-                    (chatImageIV.layoutParams as ConstraintLayout.LayoutParams).dimensionRatio =
-                        "${width}:${height}"
-                    chatImageIV.requestLayout()
-
-                } else if (message.mediaData!!.media != null) {
-                    chatImageIV.setImageURI(Uri.parse(message.mediaData!!.media))
-                    chatImageIV.layoutParams.height = ConstraintLayout.LayoutParams.WRAP_CONTENT
-                    chatImageIV.requestLayout()
-                }
-            }
-        }
-
-        override fun onClick(v: View?) {
-            if (v == chatImageIV) {
-                if (message != null && message!!.mediaData!!.mediaLink!!.isNotEmpty()) {
-                    mAdapter.enlargeImage(message!!.mediaData!!.mediaLink!!)
-                }
-            }
-        }
-    }
-
-    class VideoViewHolder(itemView: View, adapter: ChatAdapter) :
-        RecyclerView.ViewHolder(itemView), OnClickListener {
-
-        private val mAdapter = adapter
-        private val chatOwnerTV: TextView = itemView.findViewById(R.id.tv_chat_name)
-        private val videoView: ConstraintLayout = itemView.findViewById(R.id.chat_video)
-        private val timeTV: TextView = itemView.findViewById(R.id.tv_message_time)
-        private val messageStatus: ImageView = itemView.findViewById(R.id.iv_message_status)
-
-        private var message: Message? = null
-
-        init {
-            if (mAdapter.isAnonymous) {
-                chatOwnerTV.visibility = GONE
-            }
-            videoView.setOnClickListener(this)
-        }
-
-        fun bind(message: Message) {
-            this.message = message
-
-            if (message.ownerId != mAdapter.myId) {
-                messageStatus.visibility = GONE
-            } else {
-                when (message.status) {
-                    "Delivered" -> {
-                        messageStatus.setImageDrawable(
-                            AppCompatResources.getDrawable(
-                                mAdapter.context,
-                                R.drawable.ic_check
-                            )
-                        )
-                    }
-                    "Seen" -> {
-                        messageStatus.setImageDrawable(
-                            AppCompatResources.getDrawable(
-                                mAdapter.context,
-                                R.drawable.ic_seen
-                            )
-                        )
-                    }
-                    "Sending" -> {
-                        messageStatus.setImageDrawable(
-                            AppCompatResources.getDrawable(
-                                mAdapter.context,
-                                R.drawable.ic_sending
-                            )
-                        )
-                    }
-                }
-            }
-
-            timeTV.text = mAdapter.sdf.format(message.date!!)
-
-            val owner = mAdapter.chatOwnersList.first { it.phone.contains(message.ownerId) }
-            chatOwnerTV.text = owner.name
-
-            if (message.mediaData != null) {
-                (videoView.layoutParams as ConstraintLayout.LayoutParams).dimensionRatio =
-                    "${message.mediaData!!.width}:${message.mediaData!!.height}"
-                videoView.requestLayout()
-            }
-        }
-
-        override fun onClick(v: View?) {
-            if (v == videoView) {
-                //ToDo
-                if (message!!.mediaData!!.mediaLink != null && message!!.mediaData!!.mediaLink!!.isNotEmpty()) {
-                    mAdapter.enlargeVideo(message!!.mediaData!!.mediaLink!!, null)
-                } else if (message?.mediaData?.media != null && message!!.ownerId == mAdapter.myId) {
-                    mAdapter.enlargeVideo(null, Uri.parse(message!!.mediaData!!.media))
-                }
-            }
+            return true
         }
     }
 
     class FileViewHolder(itemView: View, adapter: ChatAdapter) :
-        RecyclerView.ViewHolder(itemView), OnClickListener {
+        RecyclerView.ViewHolder(itemView), OnClickListener, OnLongClickListener {
 
         private val mAdapter = adapter
         private val chatOwnerTV: TextView = itemView.findViewById(R.id.tv_chat_name)
-        private val chatReplyTV: TextView = itemView.findViewById(R.id.tv_chat_reply)
+        private val chatReplyTV: MentionTextView = itemView.findViewById(R.id.tv_chat_reply)
         private val fileNameTV: TextView = itemView.findViewById(R.id.tv_file_name)
         private val timeTV: TextView = itemView.findViewById(R.id.tv_message_time)
         private val messageStatus: ImageView = itemView.findViewById(R.id.iv_message_status)
         private val downloadBtn: ImageView = itemView.findViewById(R.id.iv_download)
+        private val parentLayout: ConstraintLayout = itemView.findViewById(R.id.layout_parent)
 
         private var message: Message? = null
+        private var currentMessageId: String = ""
 
         init {
+            downloadBtn.setOnClickListener(this)
+            fileNameTV.setOnClickListener(this)
+
+            itemView.setOnLongClickListener(this)
+            itemView.setOnClickListener(this)
+
             if (mAdapter.isAnonymous) {
                 chatOwnerTV.visibility = GONE
             }
         }
 
+        @SuppressLint("UseCompatLoadingForColorStateLists")
         fun bind(message: Message) {
+            currentMessageId = message.messageId
+
             this.message = message
 
             if (message.ownerId != mAdapter.myId) {
@@ -722,17 +767,80 @@ class ChatAdapter(
                 }
             }
 
-            fileNameTV.text = message.message
+            if (mAdapter.selectedMessage != null && mAdapter.selectedMessage!!.messageId == message.messageId) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    parentLayout.backgroundTintList = mAdapter.context.resources.getColorStateList(
+                        R.color.text_color,
+                        mAdapter.context.theme
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    parentLayout.backgroundTintList =
+                        mAdapter.context.resources.getColorStateList(R.color.text_color)
+                }
+
+                parentLayout.alpha = .3f
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    parentLayout.backgroundTintList = mAdapter.context.resources.getColorStateList(
+                        android.R.color.transparent,
+                        mAdapter.context.theme
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    parentLayout.backgroundTintList =
+                        mAdapter.context.resources.getColorStateList(android.R.color.transparent)
+                }
+
+                parentLayout.alpha = 1f
+            }
+
+            if (!message.mediaData[0].media.isNullOrEmpty()) {
+                downloadBtn.visibility = GONE
+            }
+
+            "${message.message}.${message.mediaData[0].type}".also { fileNameTV.text = it }
 
             timeTV.text = mAdapter.sdf.format(message.date!!)
 
-            val owner = mAdapter.chatOwnersList.first { it.phone.contains(message.ownerId) }
-            chatOwnerTV.text = owner.name
+            if (mAdapter.usersList.any { it.phone.contains(message.ownerId) }) {
+                val messageOwnerName =
+                    mAdapter.usersList.first { it.phone.contains(message.ownerId) }.name
+                chatOwnerTV.text = messageOwnerName
+            }
         }
 
         override fun onClick(v: View?) {
-
+            if (mAdapter.selectedMessage == null) {
+                if (v!! == downloadBtn && message != null) {
+                    mAdapter.downloadMedia(message!!)
+                } else if (v == fileNameTV && message != null && message!!.mediaData[0].media != null && message!!.mediaData[0].media!!.isNotEmpty()
+                ) {
+                    val file = File(message!!.mediaData[0].media!!)
+                    val uri = Uri.fromFile(file)
+                    val intent = Intent(Intent.ACTION_VIEW)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    intent.setDataAndType(uri, message!!.mediaData[0].type!!)
+                    try {
+                        itemView.context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Log.d("OPEN_FILE_ERROR", e.toString())
+                    }
+                }
+            } else {
+                mAdapter.removeSelectedMessage()
+            }
         }
+
+        override fun onLongClick(v: View?): Boolean {
+            if (currentMessageId.isNotEmpty()) {
+                mAdapter.removeSelectedMessage()
+                mAdapter.selectMessage(currentMessageId)
+            }
+            return true
+        }
+
     }
 
     override fun onPrepared(mp: MediaPlayer?) {

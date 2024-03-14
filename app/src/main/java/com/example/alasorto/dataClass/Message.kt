@@ -6,6 +6,7 @@ import kotlin.collections.ArrayList
 
 data class Message(
     var message: String? = "",
+    var textWithTags: String? = "",
     val ownerId: String = "",
     val messageId: String = "",
     val messageType: String = "",
@@ -13,7 +14,7 @@ data class Message(
     var date: Date? = null,
     var status: String = "",
     var groupChat: Boolean = false,
-    //ToDo: if you want to make arraylist in a room DB do it must be not nullable
     val seenBy: ArrayList<String> = ArrayList(),
-    @Embedded var mediaData: MediaData? = null
+    val mentions: ArrayList<String> = ArrayList(),
+    var mediaData: ArrayList<MediaData> = ArrayList()
 )

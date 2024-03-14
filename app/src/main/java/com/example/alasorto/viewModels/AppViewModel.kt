@@ -17,7 +17,9 @@ import com.google.android.gms.tasks.OnSuccessListener
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
@@ -39,7 +41,8 @@ class AppViewModel : ViewModel() {
     var safeSpaceCreatedMLD = MutableLiveData<SafeSpace>()
     var userByIdMLD = MutableLiveData<UserData?>()
     var remindersMLD = MutableLiveData<ArrayList<Reminder>>()
-    var groupsMLD = MutableLiveData<ArrayList<Group>>()
+    var groupsListMLD = MutableLiveData<ArrayList<Group>>()
+    var groupByIdMLD = MutableLiveData<Group>()
     var pollImagesUrlMLD = MutableLiveData<String>()
     var galleryItemsMLD = MutableLiveData<ArrayList<GalleryItem>>()
     var galleryRequestsMLD = MutableLiveData<ArrayList<GalleryRequest>>()
@@ -54,6 +57,8 @@ class AppViewModel : ViewModel() {
     var attendanceExistsMLD = MutableLiveData<Boolean>()
     var issuesListMLD = MutableLiveData<ArrayList<IssueData>>()
     var spiritualNoteListMLD = MutableLiveData<ArrayList<SpiritualNote>>()
+    var inAppNotificationsMLD = MutableLiveData<ArrayList<InAppNotificationData>>()
+    var groupWithActivity = MutableLiveData<String>()
 
     //Used to get the number of success events in case of repeating a function in a loop
     var counterMLD = MutableLiveData<Boolean>()
@@ -162,15 +167,9 @@ class AppViewModel : ViewModel() {
 
     fun getUserById(id: String) {
         db.collection("Users").document(id).get()
-            .addOnCompleteListener(OnCompleteListener {
-                if (it.isSuccessful) {
-                    if (it.result.exists()) {
-                        userByIdMLD.value = it.result.toObject(UserData::class.java)
-                    } else {
-                        userByIdMLD.value = null
-                    }
-                }
-            })
+            .addOnSuccessListener {
+                userByIdMLD.value = it.toObject(UserData::class.java)
+            }.addOnFailureListener { userByIdMLD.value = null }
     }
 
     fun getCurrentUser() {
@@ -190,7 +189,7 @@ class AppViewModel : ViewModel() {
     }
 
     fun editUserPoints(pointsNum: Long, userId: String) {
-        val reference = db.collection("Users").document(userId)
+        db.collection("Users").document(userId)
             .update("points", FieldValue.increment(pointsNum)).addOnSuccessListener {
                 counterMLD.value = true
             }
@@ -234,6 +233,30 @@ class AppViewModel : ViewModel() {
         db.collection("Users").whereEqualTo("verified", false)
             .get().addOnCompleteListener {
                 pendingVerifyUsersMLD.value = ArrayList(it.result.toObjects(UserData::class.java))
+            }
+    }
+
+    fun createInAppNotification(notification: InAppNotificationData) {
+        val reference =
+            db.collection("Users").document(notification.receiverId).collection("Notifications")
+
+        val id = reference.document().id
+        val dataMap = hashMapOf(
+            "senderId" to notification.senderId,
+            "receiverId" to notification.receiverId,
+            "text" to notification.text,
+            "notificationId" to id,
+            "date" to notification.date,
+            "notificationData" to notification.notificationData,
+        )
+        reference.document(id).set(dataMap)
+    }
+
+    fun getInAppNotification(currentUserId: String) {
+        db.collection("Users").document(currentUserId).collection("Notifications").get()
+            .addOnSuccessListener {
+                inAppNotificationsMLD.value =
+                    ArrayList(it.toObjects(InAppNotificationData::class.java))
             }
     }
 
@@ -499,7 +522,7 @@ class AppViewModel : ViewModel() {
         val id = reference.document().id
         val map = hashMapOf(
             "name" to groupName,
-            "groupID" to id,
+            "groupId" to id,
             "members" to membersList,
             "admins" to adminsList,
             "groupImageLink" to "",
@@ -551,9 +574,16 @@ class AppViewModel : ViewModel() {
         reference.get().addOnCompleteListener(OnCompleteListener {
             if (it.isSuccessful) {
                 val groupsList = ArrayList(it.result.toObjects(Group::class.java))
-                groupsMLD.value = groupsList
+                groupsListMLD.value = groupsList
             }
         })
+    }
+
+    fun getGroupById(groupId: String) {
+        val reference = db.collection("Groups").document(groupId)
+        reference.get().addOnSuccessListener {
+            groupByIdMLD.value = it.toObject(Group::class.java)
+        }
     }
 
     fun getUserGroups(userId: String) {
@@ -562,7 +592,18 @@ class AppViewModel : ViewModel() {
             .addOnCompleteListener(OnCompleteListener {
                 if (it.isSuccessful) {
                     val groupsList = ArrayList(it.result.toObjects(Group::class.java))
-                    groupsMLD.value = groupsList
+                    groupsListMLD.value = groupsList
+                }
+            })
+    }
+
+    fun getAdminGroups(userId: String) {
+        val reference = db.collection("Groups")
+        reference.whereArrayContains("admins", userId).get()
+            .addOnCompleteListener(OnCompleteListener {
+                if (it.isSuccessful) {
+                    val groupsList = ArrayList(it.result.toObjects(Group::class.java))
+                    groupsListMLD.value = groupsList
                 }
             })
     }
@@ -663,6 +704,7 @@ class AppViewModel : ViewModel() {
             "itemName" to galleryRequest.itemName,
             "requestOwner" to galleryRequest.requestOwner,
             "requestId" to id,
+            "price" to galleryRequest.price,
             "requestStatus" to galleryRequest.requestStatus,
             "requestImageLink" to galleryRequest.requestImageLink
         )
@@ -673,9 +715,16 @@ class AppViewModel : ViewModel() {
 
     fun editGalleryRequest(requestId: String, status: String) {
         val reference = db.collection("GalleryRequests").document(requestId)
-        reference.get().addOnCompleteListener {
-            if (it.isSuccessful) {
-                reference.update("requestStatus", status)
+        reference.get().addOnSuccessListener {
+            reference.update("requestStatus", status)
+        }
+    }
+
+    fun deleteGalleryRequest(galleryRequest: GalleryRequest) {
+        val reference = db.collection("GalleryRequests").document(galleryRequest.requestId)
+        reference.delete().addOnSuccessListener {
+            if (galleryRequest.requestStatus != "Delivered") {
+                editUserPoints(galleryRequest.price.toLong(), galleryRequest.requestOwner)
             }
         }
     }
@@ -719,6 +768,19 @@ class AppViewModel : ViewModel() {
             galleryWishListMLD.value =
                 ArrayList(it.result.toObjects(GalleryWishList::class.java))
         }
+    }
+
+    fun checkForGroupNewActivity(collectionPath: String, groupId: String, userId: String) {
+        db.collection(collectionPath).document(groupId)
+            .collection("Chats").orderBy("date", Query.Direction.DESCENDING).limit(1)
+            .get().addOnSuccessListener {
+                if (it.size() > 0) {
+                    val lastMessage = it.last().toObject(Message::class.java)
+                    if (lastMessage.ownerId != userId && !lastMessage.seenBy.contains(userId)) {
+                        groupWithActivity.value = groupId
+                    }
+                }
+            }
     }
 
     fun getSpiritualNote(userId: String) {
@@ -817,7 +879,7 @@ class AppViewModel : ViewModel() {
         val itemMap = hashMapOf(
             "ownerId" to safeSpace.ownerId,
             "details" to safeSpace.details,
-            "itemName" to safeSpace.itemName,
+            "itemName" to safeSpace.itemId,
             "date" to Date(),
             "hiddenUser" to safeSpace.hiddenUser,
         )

@@ -27,21 +27,18 @@ import com.example.alasorto.viewModels.AppViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import kotlin.concurrent.thread
 
-class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.OnClickListener,
-    AllUsersAdapter.OnLongClickListener {
+class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
     private val viewModel: AppViewModel by viewModels()
 
     private val allUsersList = ArrayList<UserData>()
-    private val selectedUsersList = ArrayList<UserData>()
     private val usersFilteredList = ArrayList<UserData>()
 
     private var currentUser: UserData? = null
     private var hasConnection = false
     private var month: Int = 0
-    private var vMCounter: Int = 0
-    private var selectingUsersEnabled = false
+    private var successEventsCounter: Int = 0
+    private var selectedUsersCount: Int = 0
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: AllUsersAdapter
@@ -49,7 +46,8 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
     private lateinit var userSearchET: EditText
     private lateinit var selectedUserCounterTV: TextView
     private lateinit var sortBtn: ImageView
-    private lateinit var selectAllUserscheckBox: CheckBox
+    private lateinit var usersSettingsBtn: ImageView
+    private lateinit var selectAllUsersCheckBox: CheckBox
     private lateinit var internetCheck: InternetCheck
     private lateinit var pointsDialog: Dialog
     private lateinit var monthsDialog: Dialog
@@ -71,12 +69,7 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
         }
 
         //Initialize Widgets
-        recyclerView = view.findViewById(R.id.rv_all_users)
-        sortBtn = view.findViewById(R.id.iv_filter_users)
-        addUserBtn = view.findViewById(R.id.btn_add_user)
-        userSearchET = view.findViewById(R.id.et_user_search)
-        selectAllUserscheckBox = view.findViewById(R.id.cb_select_all_users)
-        selectedUserCounterTV = view.findViewById(R.id.tv_selected_user_counter)
+        initViews(view)
 
         allUsersList.addAll((activity as MainActivity).getAllUsers().sortedBy { it.name })
         usersFilteredList.addAll(allUsersList)
@@ -93,9 +86,9 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
 
         viewModel.counterMLD.observe(this.viewLifecycleOwner, Observer {
             if (it) {
-                vMCounter++
-                if (vMCounter == selectedUsersList.size) {
-                    vMCounter = 0
+                successEventsCounter++
+                if (successEventsCounter == selectedUsersCount) {
+                    successEventsCounter = 0
                     (activity as MainActivity).dismissLoadingDialog()
                 }
             }
@@ -120,15 +113,17 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
             showSortDialog()
         })
 
-        selectAllUserscheckBox.setOnClickListener {
-            if (selectAllUserscheckBox.isChecked) {
-                selectingUsersEnabled = true
-                selectedUsersList.clear()
-                selectedUsersList.addAll(allUsersList)
+        usersSettingsBtn.setOnClickListener(OnClickListener {
+            showControlsMenu()
+        })
+
+        selectAllUsersCheckBox.setOnClickListener {
+            if (selectAllUsersCheckBox.isChecked) {
+                adapter.selectAllUsers()
             } else {
-                selectedUsersList.clear()
+                adapter.clearAllUsersSelection()
             }
-            "${selectedUsersList.size} Selected".also { selectedUserCounterTV.text = it }
+            "${adapter.getSelectedUsersCount()} Selected".also { selectedUserCounterTV.text = it }
             adapter.notifyItemRangeChanged(0, adapter.itemCount)
         }
 
@@ -153,37 +148,14 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
         })
     }
 
-    private fun setRecyclerView() {
-        if (currentUser != null) {
-            adapter =
-                AllUsersAdapter(
-                    usersFilteredList,
-                    selectedUsersList,
-                    this,
-                    this,
-                    currentUser!!.access,
-                    requireContext()
-                )
-
-            //Setting LL manager to RV
-            recyclerView.layoutManager = LinearLayoutManager(context)
-
-            recyclerView.adapter = adapter
-
-            recyclerView.addItemDecoration(LinearSpacingItemDecorator(30))
-        }
-    }
-
     override fun onResume() {
         super.onResume()
         requireActivity().onBackPressedDispatcher.addCallback(
             this.viewLifecycleOwner, object : OnBackPressedCallback(true) {
                 @SuppressLint("NotifyDataSetChanged")
                 override fun handleOnBackPressed() {
-                    if (selectingUsersEnabled) {
-                        selectedUsersList.clear()
-                        adapter.notifyDataSetChanged()
-                        selectingUsersEnabled = false
+                    if (adapter.getSelectedUsersCount() > 0) {
+                        adapter.clearAllUsersSelection()
                         "0 Selected".also { selectedUserCounterTV.text = it }
                         selectedUserCounterTV.visibility = GONE
                     } else {
@@ -207,23 +179,40 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
         }
     }
 
-    override fun onClick(user: UserData) {
-        if (selectingUsersEnabled) {
-            selectUser(user)
-        } else {
-            viewUserProfile(user)
-        }
+    private fun initViews(view: View) {
+        recyclerView = view.findViewById(R.id.rv_all_users)
+        sortBtn = view.findViewById(R.id.iv_filter_users)
+        addUserBtn = view.findViewById(R.id.btn_add_user)
+        userSearchET = view.findViewById(R.id.et_user_search)
+        usersSettingsBtn = view.findViewById(R.id.iv_users_settings)
+        selectAllUsersCheckBox = view.findViewById(R.id.cb_select_all_users)
+        selectedUserCounterTV = view.findViewById(R.id.tv_selected_user_counter)
     }
 
-    override fun onLongClick(user: UserData) {
-        selectingUsersEnabled = true
-        selectedUserCounterTV.visibility = VISIBLE
+    private fun setRecyclerView() {
+        if (currentUser != null) {
+            adapter =
+                AllUsersAdapter(
+                    usersFilteredList,
+                    currentUser!!.access,
+                    requireContext(),
+                    ::viewUserProfile,
+                    ::setSelectedUserCounterText
+                )
 
-        selectUser(user)
+            //Setting LL manager to RV
+            recyclerView.layoutManager = LinearLayoutManager(context)
+
+            recyclerView.adapter = adapter
+
+            recyclerView.addItemDecoration(LinearSpacingItemDecorator(30))
+        }
     }
 
     private fun showControlsMenu() {
         if (currentUser != null && currentUser!!.access.contains("HANDLE_USERS")) {
+
+            val selectedUsersList = adapter.getSelectedUsers()
 
             val usersControlsDialog =
                 UsersControlsDialog(
@@ -242,14 +231,13 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
         }
     }
 
-    private fun selectUser(user: UserData) {
-        if (selectedUsersList.contains(user)) {
-            selectedUsersList.remove(user)
+    private fun setSelectedUserCounterText() {
+        if (adapter.getSelectedUsersCount() > 0) {
+            selectedUserCounterTV.visibility = VISIBLE
+            "${adapter.getSelectedUsersCount()} Selected".also { selectedUserCounterTV.text = it }
         } else {
-            selectedUsersList.add(user)
+            selectedUserCounterTV.visibility = GONE
         }
-        "${selectedUsersList.size} Selected".also { selectedUserCounterTV.text = it }
-        adapter.notifyItemRangeChanged(0, adapter.itemCount)
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -395,24 +383,23 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
         confirmBtn.setOnClickListener(OnClickListener {
             if (hasConnection) {
                 if (pointsET.text.toString().isNotEmpty()) {
-                    if (selectedUsersList.isNotEmpty()) {
+                    if (adapter.getSelectedUsersCount() > 0) {
                         //If list is empty -> adds points for single user
-                        //Else adds for all users in the list
-                        thread {
-                            for (user in selectedUsersList) {
-                                if (case == "ADD") {
-                                    viewModel.editUserPoints(
-                                        (pointsET.text.toString().toLong()), user.phone
-                                    )
-                                } else {
-                                    viewModel.editUserPoints(
-                                        (-(pointsET.text.toString().toLong())), user.phone
-                                    )
-                                }
+                        //Else adds for all users in the
+                        val selectedUsersList = adapter.getSelectedUsers()
+                        for (user in selectedUsersList) {
+                            if (case == "ADD") {
+                                viewModel.editUserPoints(
+                                    (pointsET.text.toString().toLong()), user.phone
+                                )
+                            } else {
+                                viewModel.editUserPoints(
+                                    (-(pointsET.text.toString().toLong())), user.phone
+                                )
                             }
                         }
-                        selectedUsersList.clear()
-                        adapter.notifyItemRangeChanged(0, selectedUsersList.size)
+                        adapter.clearAllUsersSelection()
+                        selectedUserCounterTV.visibility = GONE
                         pointsDialog.dismiss()
                     }
                 } else {
@@ -441,6 +428,7 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
         builder.setMessage("Are you sure you want to delete this user?")
         builder.setPositiveButton("Yes") { _, _ ->
             if (hasConnection) {
+                val selectedUsersList = adapter.getSelectedUsers()
                 for (user in selectedUsersList) {
                     viewModel.deleteUser(user.phone)
                 }
@@ -451,6 +439,8 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
     }
 
     private fun goToEditUserFragment(isNewUser: Boolean) {
+        val selectedUsersList = adapter.getSelectedUsers()
+
         val manager = requireActivity().supportFragmentManager
         val transaction = manager.beginTransaction()
         val fragment = CreateUserDataFragment()
@@ -479,6 +469,8 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
     }
 
     private fun goToGiveAdminRightsFragment() {
+        val selectedUsersList = adapter.getSelectedUsers()
+
         val fragment = GiveAdminRightsFragment()
         val manager = requireActivity().supportFragmentManager
         val transaction = manager.beginTransaction()
@@ -525,13 +517,19 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
             editUserTV = view.findViewById(R.id.tv_edit_user_data)
             addPointsTV = view.findViewById(R.id.tv_add_points)
             removePointsTV = view.findViewById(R.id.tv_remove_points)
-            deleteUserTV = view.findViewById(R.id.tv_give_admin_rights)
-            giveAdminRightsTV = view.findViewById(R.id.tv_delete_user)
+            deleteUserTV = view.findViewById(R.id.tv_delete_user)
+            giveAdminRightsTV = view.findViewById(R.id.tv_give_admin_rights)
+
+            editUserTV.setOnClickListener(this)
+            addPointsTV.setOnClickListener(this)
+            removePointsTV.setOnClickListener(this)
+            deleteUserTV.setOnClickListener(this)
+            giveAdminRightsTV.setOnClickListener(this)
 
             if (selectedUsersList.size == 1) {
                 editUserTV.visibility = VISIBLE
 
-                //Change visibility of give permission option for users who don't have this access
+                //Change visibility of give permission option for users who have this access
                 if (currentUserHasPermission) {
                     giveAdminRightsTV.visibility = VISIBLE
                 }
@@ -539,7 +537,7 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
         }
 
         override fun onClick(v: View?) {
-            (activity as MainActivity).showLoadingDialog()
+            //(activity as MainActivity).showLoadingDialog()
             requireDialog().dismiss()
             if (v!! == editUserTV) {
                 goToEditUserFragment(false)
@@ -548,7 +546,7 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users), AllUsersAdapter.
             } else if (v == removePointsTV) {
                 showPointsDialog("REMOVE")
             } else if (v == giveAdminRightsTV) {
-                goToGiveAdminRightsFragment
+                goToGiveAdminRightsFragment()
             } else if (v == deleteUserTV) {
                 deleteUser()
             }

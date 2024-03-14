@@ -6,8 +6,8 @@
     android:layout_height="match_parent"
     android:background="@color/fragment_bg">
 
-    <RelativeLayout
-        android:id="@+id/rv_header"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layout_chat_header"
         android:layout_width="match_parent"
         android:layout_height="50dp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -18,33 +18,51 @@
             android:id="@+id/iv_chat"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:layout_centerVertical="true"
             android:layout_marginStart="10dp"
-            android:src="@drawable/image_logo" />
+            android:src="@drawable/image_logo"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/tv_chat_name"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="10dp"
+            android:layout_margin="10dp"
             android:layout_toEndOf="@+id/iv_chat"
             android:gravity="center_vertical"
             android:textColor="@color/text_color"
             android:textSize="25sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/btn_chat_menu"
+            app:layout_constraintStart_toEndOf="@+id/iv_chat"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    </RelativeLayout>
+        <ImageButton
+            android:id="@+id/btn_chat_menu"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_margin="8dp"
+            android:background="@drawable/ic_more_vert"
+            android:backgroundTint="@color/text_color"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_chat"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:paddingHorizontal="10dp"
-        app:layout_constraintBottom_toTopOf="@+id/cl_chat"
+        app:layout_constraintBottom_toTopOf="@+id/cl_reply_text"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/rv_header" />
+        app:layout_constraintTop_toBottomOf="@+id/layout_chat_header" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/cl_reply_text"
@@ -110,7 +128,7 @@
             app:barrierDirection="start"
             app:constraint_referenced_ids="btn_record_voice, btn_gc_send" />
 
-        <EditText
+        <com.example.alasorto.utils.MentionEditText
             android:id="@+id/et_chat_text"
             android:layout_width="0dp"
             android:layout_height="35dp"
@@ -123,10 +141,20 @@
             android:textColor="@color/text_color"
             android:textColorHint="@color/text_hint"
             app:backgroundTint="@color/primary_color"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/btn_gc_file"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
             tools:ignore="RtlSymmetry" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_selected_media"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@+id/et_chat_text"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
 
         <ImageButton
             android:id="@+id/btn_gc_file"
@@ -139,24 +167,9 @@
             android:padding="3dp"
             android:scaleType="fitXY"
             android:src="@drawable/ic_file"
-            app:layout_constraintEnd_toStartOf="@+id/btn_gc_video"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/secondary_color" />
-
-        <ImageButton
-            android:id="@+id/btn_gc_video"
-            style="@style/Widget.AppCompat.Button.Borderless"
-            android:layout_width="35dp"
-            android:layout_height="35dp"
-            android:layout_marginEnd="5dp"
-            android:layout_toStartOf="@+id/btn_gc_image"
-            android:contentDescription="@string/todo"
-            android:cropToPadding="true"
-            android:padding="3dp"
-            android:scaleType="fitXY"
-            android:src="@drawable/ic_video"
+            app:layout_constraintBottom_toBottomOf="@+id/et_chat_text"
             app:layout_constraintEnd_toStartOf="@+id/btn_gc_image"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/et_chat_text"
             app:tint="@color/secondary_color" />
 
         <ImageButton
@@ -171,8 +184,9 @@
             android:padding="3dp"
             android:scaleType="fitXY"
             android:src="@drawable/ic_image"
+            app:layout_constraintBottom_toBottomOf="@+id/et_chat_text"
             app:layout_constraintEnd_toStartOf="@+id/barrier"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/et_chat_text"
             app:tint="@color/secondary_color" />
 
         <ImageButton
@@ -186,8 +200,9 @@
             android:scaleType="fitXY"
             android:src="@drawable/ic_send"
             android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/et_chat_text"
             app:tint="@color/secondary_color" />
 
         <com.devlomi.record_view.RecordButton
@@ -198,8 +213,9 @@
             android:backgroundTint="@color/secondary_color"
             android:scaleType="centerInside"
             android:tint="@color/drawable_tint"
+            app:layout_constraintBottom_toBottomOf="@+id/et_chat_text"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/et_chat_text"
             app:mic_icon="@drawable/recv_ic_mic_white"
             app:slide_to_cancel_bounds="8dp" />
 
@@ -218,38 +234,20 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/cl_chat_expanded_media"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/fragment_bg"
+    <com.example.alasorto.utils.MentionRecyclerView
+        android:id="@+id/rv_mentions"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginHorizontal="20dp"
+        android:background="@drawable/round_corners_15dp"
+        android:backgroundTint="@color/primary_color"
+        android:maxHeight="300dp"
+        android:minHeight="50dp"
+        android:padding="10dp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toBottomOf="@+id/rv_chat"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ImageView
-            android:id="@+id/iv_expanded"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="fitCenter"
-            android:src="@drawable/image_logo"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <include
-            android:id="@+id/expanded_video"
-            layout="@layout/layout_video_player"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,5 +1,6 @@
 package com.example.alasorto.notification
 
+import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
@@ -16,9 +17,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         if (message.data.isNotEmpty()) {
             val title = message.data["title"]
-            val message = message.data["message"]
+            val desc = message.data["message"]
+            val dataMap = message.data["dataMap"]
 
-            mNotificationManager.textNotification(title, message)
+            mNotificationManager.textNotification(title, desc, dataMap)
         }
     }
 
