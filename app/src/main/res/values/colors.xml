@@ -8,6 +8,7 @@
     <color name="tag_tint">#00AFFF</color>
     <color name="text_shadow">#FFFFFF</color>
     <color name="bottom_nav">#BCA37F</color>
+    <color name="custom_input_tint">#FFFFFF</color>
     <color name="primary_color">#FFFFFF</color>
     <color name="secondary_color">#BFBFBF</color>
     <color name="text_hint">#909090</color>

@@ -3,31 +3,18 @@ package com.example.alasorto
 import android.app.AlertDialog
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.view.Window
 import android.widget.Button
 import android.widget.EditText
-import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import com.example.alasorto.viewModels.AuthViewModel
 import com.google.firebase.FirebaseException
-import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.*
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import java.util.concurrent.TimeUnit
 
-/*
-    implementation 'com.google.firebase:firebase-appcheck-safetynet:16.0.0'
-    implementation 'com.google.firebase:firebase-auth'
-    implementation 'com.google.firebase:firebase-auth:21.0.7'
- */
-
-class RegisterFragment : Fragment() {
+class RegisterFragment : Fragment(R.layout.fragment_register) {
     private lateinit var mActivity: AuthActivity
     private lateinit var phoneNumTV: EditText
     private lateinit var sendCodeBtn: Button
@@ -40,20 +27,7 @@ class RegisterFragment : Fragment() {
     private lateinit var resendToken: PhoneAuthProvider.ForceResendingToken
     private lateinit var viewModel: AuthViewModel
 
-    /*init {
-        FirebaseAuth.getInstance().firebaseAuthSettings.setAppVerificationDisabledForTesting(false)
-        FirebaseAuth.getInstance().firebaseAuthSettings.forceRecaptchaFlowForTesting(true)
-    }*/
-
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        return inflater.inflate(R.layout.fragment_register, container, false)
-    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)

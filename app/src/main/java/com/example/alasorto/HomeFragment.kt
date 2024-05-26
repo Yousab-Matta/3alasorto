@@ -3,6 +3,8 @@ package com.example.alasorto
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.os.Bundle
+import android.util.DisplayMetrics
+import android.util.Log
 import android.view.*
 import android.view.View.*
 import android.widget.*
@@ -20,7 +22,6 @@ import com.example.alasorto.utils.*
 import com.example.alasorto.viewModels.AppViewModel
 import com.example.alasorto.viewModels.PostsViewModel
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import java.util.*
@@ -30,7 +31,7 @@ import kotlin.concurrent.thread
 @Suppress("UNCHECKED_CAST")
 class HomeFragment : Fragment(R.layout.fragment_home),
     PostsBottomSheet.OnPostSettingsItemClick {
-    private val currentUserId = FirebaseAuth.getInstance().currentUser!!.phoneNumber!!
+    private val currentUserPhone = FirebaseAuth.getInstance().currentUser!!.phoneNumber!!
     private val dialog = PostsBottomSheet(this)
     private val postsViewModel: PostsViewModel by viewModels()
     private val appViewModel: AppViewModel by viewModels()
@@ -38,7 +39,6 @@ class HomeFragment : Fragment(R.layout.fragment_home),
 
     //Used to check if this user is already updated from database so we don't fetch this user again
     private val usersIdsList = ArrayList<String>()
-
     private var postsList = ArrayList<Post>()
     private var selectedPost: Post? = null
     private var currentUser: UserData? = null
@@ -49,6 +49,7 @@ class HomeFragment : Fragment(R.layout.fragment_home),
 
     private var groupId = ""
     private var collectionPath = ""
+    private var currentUserId = ""
 
     private lateinit var mActivity: MainActivity
     private lateinit var recyclerView: RecyclerView
@@ -68,6 +69,8 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         view.isClickable = true
 
         mActivity = activity as MainActivity
+        currentUser = mActivity.getCurrentUserData()
+        currentUserId = mActivity.getCurrentUserId()
 
         val args = this.arguments
         if (args != null) {
@@ -91,24 +94,37 @@ class HomeFragment : Fragment(R.layout.fragment_home),
                     left to right
                 }
 
+                val collectionPath = if (argsMap.containsKey("collectionPath")) {
+                    argsMap["collectionPath"]
+                } else {
+                    ""
+                }!!
+
+                val groupId = if (argsMap.containsKey("groupId")) {
+                    argsMap["groupId"]
+                } else {
+                    ""
+                }!!
+
                 if (argsMap.containsKey("case")) {
                     if (argsMap["case"] == "Comment") {
                         if (argsMap["id"] != null && argsMap["id"]!!.isNotEmpty()) {
-                            showComments(argsMap["id"]!!)
+                            showComments(argsMap["id"]!!, collectionPath, groupId)
                         }
                     } else if (argsMap["case"] == "Post") {
                         if (argsMap["id"] != null && argsMap["id"]!!.isNotEmpty()) {
-                            goToPostPage(argsMap["id"]!!)
+                            goToPostPage(argsMap["id"]!!, collectionPath, groupId)
                         }
                     } else if (argsMap["case"] == "Chat") {
-                        //ToDo: Personal chat too
                         if (argsMap["id"] != null && argsMap["id"]!!.isNotEmpty()) {
-                            goToPostPage(argsMap["id"]!!)
+                            goToChatFragment(argsMap["id"]!!, collectionPath, groupId)
                         }
                     }
                 }
             }
         }
+
+        initViews(view)
 
         //Check internet connection
         internetCheck = InternetCheck(requireActivity().application)
@@ -117,8 +133,10 @@ class HomeFragment : Fragment(R.layout.fragment_home),
             if (it) {
                 if (postsList.size == 0) {
                     postsViewModel.getPosts(reference)
+                    refreshLayout.isRefreshing = false
                 } else {
                     if (!postsHaveReachedBottom) {
+                        refreshLayout.isRefreshing = false
                         postsViewModel.getMorePosts(
                             reference,
                             postsList.last().postDate!!
@@ -128,8 +146,8 @@ class HomeFragment : Fragment(R.layout.fragment_home),
             }
         }
 
-        initViews(view)
         initRecyclerView()
+        setUserData()
 
         refreshLayout.setOnRefreshListener {
             if (hasConnection) {
@@ -143,6 +161,7 @@ class HomeFragment : Fragment(R.layout.fragment_home),
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
                 if (postsList.size > 0 && linearLayoutManager.findLastCompletelyVisibleItemPosition() == 0 && !postsHaveReachedBottom) {
+                    refreshLayout.isRefreshing = false
                     postsViewModel.getMorePosts(
                         reference,
                         postsList.last().postDate!!
@@ -151,40 +170,13 @@ class HomeFragment : Fragment(R.layout.fragment_home),
             }
         })
 
-        offlineUserViewModel.getUserById(currentUserId)
-        offlineUserViewModel.userById.observe(this.viewLifecycleOwner, Observer {
-            if (it != null) {
-                currentUser = it.user
-                setUserData()
-            } else {
-                currentUser = mActivity.getCurrentUser()
-                if (currentUser != null) {
-                    setUserData()
-                } else {
-                    appViewModel.getCurrentUser()
-                }
-            }
-        })
-
-        appViewModel.currentUserMLD.observe(this.viewLifecycleOwner, Observer {
-            if (it != null) {
-                currentUser = it
-                if (currentUser != null) {
-                    setUserData()
-                }
-            }
-        })
+        //ToDo:offline user data
 
         //User by Id Observer
         appViewModel.userByIdMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
                 postsAdapter.updateUsersList(it)
-                usersIdsList.add(it.phone)
-
-                if (it.phone == currentUserId && currentUser == null) {
-                    currentUser = it
-                    setUserData()
-                }
+                usersIdsList.add(it.userId)
             }
         })
 
@@ -217,7 +209,6 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         })
 
         postsViewModel.newPostsListMLD.observe(this.viewLifecycleOwner, Observer {
-
             if (it != null) {
                 postsHaveReachedBottom = it.size < 15
 
@@ -252,13 +243,6 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         postsViewModel.reactMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
                 postsAdapter.addReactToList(it)
-
-                for (index in postsList.indices) {
-                    val viewHolder = recyclerView.findViewHolderForLayoutPosition(index)
-                    if (viewHolder is PostsAdapter.PostViewHolder) {
-                        viewHolder.updateReact()
-                    }
-                }
             }
         })
 
@@ -284,9 +268,6 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         {
             goToProfileFragment()
         })
-
-        currentUser = mActivity.getCurrentUser()
-        setUserData()
     }
 
     override fun onResume() {
@@ -296,6 +277,7 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         { _, _ ->
             if (hasConnection) {
                 postsViewModel.getPosts(reference)
+                refreshLayout.isRefreshing = false
             }
         }
 
@@ -308,18 +290,14 @@ class HomeFragment : Fragment(R.layout.fragment_home),
                         postsViewModel.getReacts(reference, post.postId)
                     }
                 }
-        }
 
-        //Check changes in pollData
-        Firebase.firestore.collection("PollItemData").addSnapshotListener()
-        { _, _ ->
-            if (hasConnection) {
-                for (post in postsList) {
-                    if (post.postType != "Post") {
-                        postsViewModel.getPollData(post.postId)
+            reference.document(post.postId).collection("PollItemData")
+                .addSnapshotListener()
+                { _, _ ->
+                    if (hasConnection) {
+                        postsViewModel.getPollData(reference, post.postId)
                     }
                 }
-            }
         }
     }
 
@@ -336,7 +314,7 @@ class HomeFragment : Fragment(R.layout.fragment_home),
             }
 
             thread {
-                postsViewModel.getPollData(post.postId)
+                postsViewModel.getPollData(reference, post.postId)
             }
 
             thread {
@@ -355,16 +333,21 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         dialog.show(requireActivity().supportFragmentManager, "POSTS_BOTTOM_SHEETS")
     }
 
-    private fun showComments(postID: String) {
-        val commentsFragment = CommentsBottomFragment(postID)
+    private fun showComments(postId: String) {
+        val bottomFragment = BottomSheetFragment()
         val args = Bundle()
         args.putString("COLLECTION_PATH", collectionPath)
+        args.putString("FRAGMENT", "COMMENTS")
+        args.putString("POST_ID", postId)
         args.putString("GROUP_ID", groupId)
-        commentsFragment.arguments = args
-        commentsFragment.show(
+        bottomFragment.show(
             requireActivity().supportFragmentManager,
             "COMMENTS_BOTTOM_SHEETS"
         )
+
+        val commentsFragment = CommentsFragment()
+        commentsFragment.arguments = args
+        bottomFragment.setFragment(commentsFragment)
     }
 
     private fun goToPeopleWhoVotedFragment(postID: String, usersList: ArrayList<UserSelection>?) {
@@ -426,6 +409,7 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         //Initialize adapter and set it to recyclerview
         postsAdapter = PostsAdapter(
             postsList,
+            currentUserId,
             ::goToPeopleWhoVotedFragment,
             ::showComments,
             ::showPostControls,
@@ -449,14 +433,12 @@ class HomeFragment : Fragment(R.layout.fragment_home),
     }
 
     private fun onPollItemClicked(pollPost: Post, pollItemId: String) {
-        if (Firebase.auth.currentUser != null && Firebase.auth.currentUser!!.phoneNumber != null) {
-            val userSelection =
-                UserSelection(currentUserId, pollItemId)
-            postsViewModel.editPollChoice(
-                userSelection,
-                pollPost,
-            )
-        }
+        val userSelection =
+            UserSelection(currentUserId, pollItemId)
+        postsViewModel.editPollChoice(
+            userSelection,
+            pollPost
+        )
     }
 
     override fun onPostSettingsClick(case: String) {
@@ -473,6 +455,49 @@ class HomeFragment : Fragment(R.layout.fragment_home),
         transaction.add(R.id.main_frame, SpecificPostFragment(postId))
         transaction.addToBackStack("SPECIFIC_POSTS_FRAGMENT")
         transaction.commit()
+    }
+
+    private fun goToPostPage(postId: String, collectionPath: String, groupId: String) {
+        val fragment = SpecificPostFragment(postId)
+        val manager = requireActivity().supportFragmentManager
+        val transaction = manager.beginTransaction()
+        val args = Bundle()
+        args.putString("COLLECTION_PATH", collectionPath)
+        args.putString("GROUP_ID", groupId)
+        fragment.arguments = args
+        transaction.add(R.id.main_frame, fragment)
+        transaction.addToBackStack("SPECIFIC_POSTS_FRAGMENT")
+        transaction.commit()
+    }
+
+    private fun goToChatFragment(messageId: String, collectionPath: String, groupId: String) {
+        val fragment = ChatFragment()
+        val manager = requireActivity().supportFragmentManager
+        val transaction = manager.beginTransaction()
+        val args = Bundle()
+        args.putString("COLLECTION_PATH", collectionPath)
+        args.putString("CHAT_ID", groupId)
+        fragment.arguments = args
+        transaction.add(R.id.main_frame, fragment)
+        transaction.addToBackStack("CHAT_FRAGMENT")
+        transaction.commit()
+    }
+
+    private fun showComments(postId: String, collectionPath: String, groupId: String) {
+        val bottomFragment = BottomSheetFragment()
+        val args = Bundle()
+        args.putString("COLLECTION_PATH", collectionPath)
+        args.putString("FRAGMENT", "COMMENTS")
+        args.putString("POST_ID", postId)
+        args.putString("GROUP_ID", groupId)
+        bottomFragment.show(
+            requireActivity().supportFragmentManager,
+            "COMMENTS_BOTTOM_SHEETS"
+        )
+
+        val commentsFragment = CommentsFragment()
+        commentsFragment.arguments = args
+        bottomFragment.setFragment(commentsFragment)
     }
 
     private fun initViews(view: View) {
@@ -553,6 +578,7 @@ class HomeFragment : Fragment(R.layout.fragment_home),
     }
 
     private fun setUserData() {
+        Log.d("TEST_USER_DATA", "$currentUser")
         if (currentUser != null) {
             //set user image to imageView
             if (currentUser!!.imageLink.isNotEmpty()) {

@@ -1,37 +1,27 @@
 package com.example.alasorto.adapters
 
 import android.annotation.SuppressLint
-import android.graphics.Typeface
-import android.os.Build
-import android.text.Spannable
-import android.text.SpannableString
-import android.text.style.BackgroundColorSpan
-import android.text.style.StyleSpan
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import android.view.ViewGroup
-import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.view.get
-import androidx.core.view.size
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.alasorto.R
 import com.example.alasorto.dataClass.*
 import com.example.alasorto.utils.*
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.auth.User
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.ArrayList
 
 class PostsAdapter(
     private val postsList: ArrayList<Post>,
+    private val currentUserId: String,
     private val goToVotesFragment: (String, ArrayList<UserSelection>?) -> Unit,
     private var showComments: (String) -> Unit,
     private var showPostControls: (Post) -> Unit,
@@ -44,7 +34,7 @@ class PostsAdapter(
 
     ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    private val currentUserId = FirebaseAuth.getInstance().currentUser!!.phoneNumber!!
+    private val currentUserPhone = FirebaseAuth.getInstance().currentUser!!.phoneNumber!!
     private val sdf = SimpleDateFormat("EEE, d, MMM, HH:mm:ss", Locale.ENGLISH)
     private val usersList = ArrayList<UserData>()
     private val reactsList = ArrayList<PostReact>()
@@ -57,22 +47,17 @@ class PostsAdapter(
 
     fun addReactToList(newReact: PostReact) {
         if (reactsList.any { it.postId == newReact.postId }) {
-            val removedReacts = reactsList.filter { it.postId == newReact.postId }
-            reactsList.removeAll(removedReacts.toSet())
+            reactsList.removeAll { it.postId == newReact.postId }
         }
         reactsList.add(newReact)
-
-        Log.d("REACTS_TEST", reactsList.size.toString())
     }
 
     fun removeReactFromList(newReact: PostReact) {
-        if (reactsList.any { it.postId == newReact.postId }) {
-            reactsList.removeAll { it.postId == newReact.postId }
-        }
+        reactsList.remove(newReact)
     }
 
     fun updateUsersList(userData: UserData) {
-        if (!usersList.any { it.phone == userData.phone }) {
+        if (!usersList.any { it.userId == userData.userId }) {
             usersList.add(userData)
         }
 
@@ -119,17 +104,10 @@ class PostsAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val post = postsList[position]
 
-        val react = if (reactsList.any { it.postId == post.postId }) {
-            val postReacts = reactsList.first { it.postId == post.postId }
-            postReacts.reacts.firstOrNull { it.userId == currentUserId }
-        } else {
-            null
-        }
-
         if (getItemViewType(position) == ITEM_POST) {
             (holder as PostViewHolder).bind(post)
         } else {
-            (holder as PollViewHolder).bind(post, react)
+            (holder as PollViewHolder).bind(post)
         }
     }
 
@@ -138,7 +116,7 @@ class PostsAdapter(
     }
 
     fun getPostOwner(ownerID: String): UserData? {
-        return usersList.firstOrNull { it.phone == ownerID }
+        return usersList.firstOrNull { it.userId == ownerID }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -167,7 +145,6 @@ class PostsAdapter(
         }
 
         fun bind(post: Post) {
-            setPostResidualData(post)
 
             currentPost = post
 
@@ -190,8 +167,8 @@ class PostsAdapter(
 
             if (post.mentionsList.isNotEmpty()) {
                 for (userId in post.mentionsList) {
-                    if (mAdapter.usersList.any { it.phone == userId } && !mentionedUsersDataList.any { it.phone == userId }) {
-                        mentionedUsersDataList.add(mAdapter.usersList.first { it.phone == userId })
+                    if (mAdapter.usersList.any { it.userId == userId } && !mentionedUsersDataList.any { it.userId == userId }) {
+                        mentionedUsersDataList.add(mAdapter.usersList.first { it.userId == userId })
                     }
                 }
             }
@@ -208,32 +185,12 @@ class PostsAdapter(
 
             reactsTV.setArgs(
                 post.postId,
+                mAdapter.currentUserId,
                 mAdapter.createReact,
                 mAdapter.deleteReact,
                 mAdapter.recyclerViewScrollState
             )
 
-            updateReact()
-        }
-
-        fun updateReact() {
-            if (currentPost != null) {
-                val react = if (mAdapter.reactsList.any { it.postId == currentPost!!.postId }) {
-                    val postReacts =
-                        mAdapter.reactsList.first { it.postId == currentPost!!.postId }
-                    postReacts.reacts.firstOrNull { it.userId == mAdapter.currentUserId }
-                } else {
-                    null
-                }
-                if (react != null) {
-                    reactsTV.setReact(react.userChoice)
-                } else {
-                    reactsTV.setReact("")
-                }
-            }
-        }
-
-        private fun setPostResidualData(post: Post) {
             if (post.ownerID != mAdapter.currentUserId) {
                 postMenuIV.visibility = GONE
             } else {
@@ -247,8 +204,27 @@ class PostsAdapter(
             if (owner != null) {
                 nameTV.text = owner.name
 
-                if (owner.imageLink.isNotEmpty()) {
-                    Glide.with(ownerIV).load(owner.imageLink).into(ownerIV)
+                Glide.with(ownerIV).load(owner.imageLink).placeholder(R.drawable.image_logo)
+                    .into(ownerIV)
+            }
+
+            updateReact()
+        }
+
+        private fun updateReact() {
+            if (currentPost != null) {
+                val react = if (mAdapter.reactsList.any { it.postId == currentPost!!.postId }) {
+                    val postReacts =
+                        mAdapter.reactsList.first { it.postId == currentPost!!.postId }
+                    postReacts.reacts.firstOrNull { it.userId == mAdapter.currentUserId }
+                } else {
+                    null
+                }
+
+                if (react != null) {
+                    reactsTV.setReact(react.userChoice)
+                } else {
+                    reactsTV.setReact("")
                 }
             }
         }
@@ -297,11 +273,10 @@ class PostsAdapter(
         init {
             commentTV.setOnClickListener(this)
             postMenuIV.setOnClickListener(this)
+            dateTV.setOnClickListener(this)
         }
 
-        fun bind(post: Post, react: UserSelection?) {
-
-            setPostResidualData(post)
+        fun bind(post: Post) {
 
             currentPost = post
 
@@ -319,22 +294,23 @@ class PostsAdapter(
 
             reactsTV.setArgs(
                 post.postId,
+                mAdapter.currentUserId,
                 mAdapter.createReact,
                 mAdapter.deleteReact,
                 mAdapter.recyclerViewScrollState
             )
 
-            if (react != null) {
-                reactsTV.setReact(react.userChoice)
-            }
-
             //Create a list of user data to use in mention text view
             val mentionedUsersDataList = ArrayList<UserData>()
 
+            if (!post.mediaList.isNullOrEmpty() && !post.mediaList!![0].mediaLink.isNullOrEmpty()) {
+                Glide.with(postIV).load(post.mediaList!![0].mediaLink).into(postIV)
+            }
+
             if (post.mentionsList.isNotEmpty()) {
                 for (userId in post.mentionsList) {
-                    if (mAdapter.usersList.any { it.phone == userId } && !mentionedUsersDataList.any { it.phone == userId }) {
-                        mentionedUsersDataList.add(mAdapter.usersList.first { it.phone == userId })
+                    if (mAdapter.usersList.any { it.userId == userId } && !mentionedUsersDataList.any { it.userId == userId }) {
+                        mentionedUsersDataList.add(mAdapter.usersList.first { it.userId == userId })
                     }
                 }
             }
@@ -355,9 +331,6 @@ class PostsAdapter(
                 descTV.visibility = GONE
             }
 
-        }
-
-        private fun setPostResidualData(post: Post) {
             if (post.ownerID != mAdapter.currentUserId) {
                 postMenuIV.visibility = GONE
             } else {
@@ -371,8 +344,27 @@ class PostsAdapter(
             if (owner != null) {
                 nameTV.text = owner.name
 
-                if (owner.imageLink.isNotEmpty()) {
-                    Glide.with(ownerIV).load(owner.imageLink).into(ownerIV)
+                Glide.with(ownerIV).load(owner.imageLink).placeholder(R.drawable.image_logo)
+                    .into(ownerIV)
+            }
+            updateReact()
+
+        }
+
+        private fun updateReact() {
+            if (currentPost != null) {
+                val react = if (mAdapter.reactsList.any { it.postId == currentPost!!.postId }) {
+                    val postReacts =
+                        mAdapter.reactsList.first { it.postId == currentPost!!.postId }
+                    postReacts.reacts.firstOrNull { it.userId == mAdapter.currentUserId }
+                } else {
+                    null
+                }
+
+                if (react != null) {
+                    reactsTV.setReact(react.userChoice)
+                } else {
+                    reactsTV.setReact("")
                 }
             }
         }
@@ -385,7 +377,9 @@ class PostsAdapter(
                     commentTV -> {
                         mAdapter.showComments(currentPost!!.postId)
                     }
-
+                    dateTV -> {
+                        mAdapter.goToPostPage(currentPost!!.postId)
+                    }
                     //When user click on menu IV interface sends post item and opens settings from user fragment
                     postMenuIV -> {
                         mAdapter.showPostControls(currentPost!!)

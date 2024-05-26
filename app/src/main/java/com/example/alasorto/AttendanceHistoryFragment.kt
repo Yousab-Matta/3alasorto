@@ -2,8 +2,16 @@ package com.example.alasorto
 
 import android.app.AlertDialog
 import android.app.DatePickerDialog
+import android.app.Dialog
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.InsetDrawable
+import android.icu.text.SimpleDateFormat
+import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.view.View.GONE
+import android.view.View.VISIBLE
 import android.view.WindowManager
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.AlphaAnimation
@@ -17,6 +25,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.alasorto.adapters.AttHistoryAdapter
@@ -31,17 +40,18 @@ import com.example.alasorto.viewModels.AppViewModel
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import java.util.*
+import kotlin.collections.ArrayList
 
 class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history) {
-    private val pendingAttViewModel: PendingAttendanceViewModel by viewModels()
     private val viewModel: AppViewModel by viewModels()
     private val attendanceList = ArrayList<Attendance>()
     private val allUsersList = ArrayList<UserData>()
     private val usersList = ArrayList<UserData>()
     private val pendingAttendanceList = ArrayList<Attendance>() //List of (Attendance)
-    private val pendingList = ArrayList<PendingAttendance>() //List of PenindingAttendance
-
+    private val pendingList = ArrayList<PendingAttendance>() //List of Pending Attendance
     private lateinit var attHistoryRV: RecyclerView
+
+    private lateinit var pendingAttViewModel: PendingAttendanceViewModel
     private lateinit var attUsersRV: RecyclerView
     private lateinit var newAttBtn: ImageButton
     private lateinit var searchByDateBtn: ImageButton
@@ -54,10 +64,13 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
     private lateinit var deletedAttendance: Attendance
     private lateinit var attHistoryAdapter: AttHistoryAdapter
     private lateinit var groupOfUsersAdapter: GroupOfUsersAdapter
+    private lateinit var handleAttDialog: Dialog
 
     private var hasConnection = false
-    private var deletedUserAttCount = 0 //Count users when deleting an attendance file
-    private var totalAttendanceUserAttCount = 0 //Count users of selected attendance file
+    private var showingPendingAtt = false
+    private var isNewAttendance = true
+    private var noAttendanceResultText = 0
+    private var handleAttText = "" //Text that is shown in handling att
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -65,6 +78,9 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
         view.isClickable = true
 
         allUsersList.addAll((activity as MainActivity).getAllUsers())
+
+        pendingAttViewModel =
+            ViewModelProvider(requireActivity())[PendingAttendanceViewModel::class.java]
 
         attHistoryRV = view.findViewById(R.id.rv_attendance_history)
         attUsersRV = view.findViewById(R.id.rv_attendance_history_users)
@@ -88,10 +104,11 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
 
         //Set History Users RV adapter
         attHistoryAdapter =
-            AttHistoryAdapter(attendanceList, ::goToAttendanceUsers, ::deleteAttendance)
+            AttHistoryAdapter(attendanceList, ::goToAttendanceUsers, ::handleAttendance)
         attHistoryRV.adapter = attHistoryAdapter
 
         pendingAttViewModel.readAllData.observe(this.viewLifecycleOwner, Observer {
+
             pendingList.clear()
             pendingList.addAll(it)
 
@@ -100,49 +117,35 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
                 pendingAttendanceList.add(pendingAttendance.attendance)
             }
             pendingAttendanceList.sortByDescending { it1 -> it1.date }
+
+            if (showingPendingAtt) {
+                attHistoryAdapter.setAttendanceList(pendingAttendanceList)
+            }
         })
 
         viewModel.attendanceListMLD.observe(this.viewLifecycleOwner, Observer {
-            if (it != null && it.size > 0) {
+            if (!it.isNullOrEmpty()) {
                 attendanceList.clear()
                 attendanceList.addAll(it)
                 attHistoryAdapter.setAttendanceList(it)
             } else {
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.no_attendance_record),
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(requireContext(), noAttendanceResultText, Toast.LENGTH_SHORT)
+                    .show()
             }
         })
 
         viewModel.attendanceItemMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
                 val index = attendanceList.indexOfFirst { it1 -> it1.id == it.id }
-                attendanceList[index] = it
-                attHistoryAdapter.notifyItemChanged(index)
-            }
-        })
-
-        viewModel.deletedUserAttMLD.observe(this.viewLifecycleOwner, Observer {
-            if (it) {
-                deletedUserAttCount += 1
-
-                if (deletedUserAttCount == totalAttendanceUserAttCount) {
-                    deletedUserAttCount = 0
-                    (activity as MainActivity).dismissLoadingDialog()
-
-                    if (attendanceList.contains(deletedAttendance)) {
-                        val index = attendanceList.indexOf(deletedAttendance)
-                        attendanceList.remove(deletedAttendance)
-                        attHistoryAdapter.notifyItemRemoved(index)
-                    }
+                if (index > -1) {
+                    attendanceList[index] = it
+                    attHistoryAdapter.notifyItemChanged(index)
                 }
             }
         })
 
-        viewModel.deletedUserAttMLD.observe(this.viewLifecycleOwner, Observer {
-            //ToDo: check user selection (all att or att by date), and read att from database depends on his selection to update attendance list if its deleted
+        viewModel.finishedAttendanceMLD.observe(this.viewLifecycleOwner, Observer {
+            pendingAttViewModel.readAllData
         })
 
         //Go To create new Attendance Fragment
@@ -156,10 +159,14 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
         })
 
         searchByDateBtn.setOnClickListener {
+            showingPendingAtt = false
+            noAttendanceResultText = R.string.no_attendance_record_for_date
             showDatePickedDialog()
         }
 
         getAllAttendanceBtn.setOnClickListener {
+            showingPendingAtt = false
+            noAttendanceResultText = R.string.no_attendance_records
             if (hasConnection) {
                 viewModel.getAllAttendance()
             } else {
@@ -169,17 +176,52 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
         }
 
         pendingAttendanceBtn.setOnClickListener {
+            showingPendingAtt = true
+            attendanceList.clear()
             attHistoryAdapter.setAttendanceList(pendingAttendanceList)
+            if (pendingAttendanceList.isEmpty()) {
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.no_pending_attendance),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        searchByDateBtn.setOnLongClickListener {
+            Toast.makeText(requireContext(), R.string.search_att_by_date, Toast.LENGTH_SHORT)
+                .show()
+            true
+        }
+
+        getAllAttendanceBtn.setOnLongClickListener {
+            Toast.makeText(requireContext(), R.string.get_all_att_records, Toast.LENGTH_SHORT)
+                .show()
+            true
+        }
+
+        pendingAttendanceBtn.setOnLongClickListener {
+            Toast.makeText(requireContext(), R.string.get_pending_attendance, Toast.LENGTH_SHORT)
+                .show()
+            true
         }
 
         editUsersBtn.setOnClickListener {
-            switchRV(false)
+            switchRV(false, showEditButton = false)
+
+            if (pendingList.any { a -> a.attendance.id == currentAttendance.id }) {
+                val pendingAtt =
+                    pendingList.first { a -> a.attendance.id == currentAttendance.id }
+
+                isNewAttendance = pendingAtt.isNewAttendance && !pendingAtt.startedUpload
+            }
 
             val fragment = CreateAttFragment()
             val manager = requireActivity().supportFragmentManager
             val transaction = manager.beginTransaction()
             val bundle = Bundle()
             bundle.putParcelable("EDITING_ATTENDANCE", currentAttendance)
+            bundle.putBoolean("IS_NEW_ATT", isNewAttendance)
             fragment.arguments = bundle
             transaction.add(R.id.main_frame, fragment)
             transaction.addToBackStack("CREATE_NEW_ATT_FRAGMENT")
@@ -208,8 +250,8 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
         requireActivity().onBackPressedDispatcher.addCallback(
             this.viewLifecycleOwner, object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    if (attUsersRV.visibility == View.VISIBLE) {
-                        switchRV(false)
+                    if (attUsersRV.visibility == VISIBLE) {
+                        switchRV(false, showEditButton = false)
                     } else {
                         requireActivity().supportFragmentManager.popBackStack(
                             "ATTENDANCE_FRAGMENT",
@@ -246,7 +288,7 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
         datePickerDialog.show()
     }
 
-    private fun switchRV(showingUsers: Boolean) {
+    private fun switchRV(showingUsers: Boolean, showEditButton: Boolean) {
         val fadeIn: Animation = AlphaAnimation(0f, 1f)
         fadeIn.interpolator = DecelerateInterpolator()
         fadeIn.duration = 200
@@ -256,29 +298,33 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
         fadeOut.duration = 200
         if (showingUsers) {
             usersList.clear()
-            val idsList = currentAttendance.usersIDs?.let { ArrayList(it) }
+            val idsList = ArrayList(currentAttendance.usersIDs)
             for (user in allUsersList) {
-                if (idsList != null) {
-                    if (idsList.contains(user.phone)) {
-                        usersList.add(user)
-                    }
+                if (idsList.contains(user.userId)) {
+                    usersList.add(user)
                 }
             }
             groupOfUsersAdapter.notifyItemRangeInserted(0, usersList.size)
-            searchByDateBtn.visibility = View.GONE
-            getAllAttendanceBtn.visibility = View.GONE
-            pendingAttendanceBtn.visibility = View.GONE
-            newAttBtn.visibility = View.GONE
-            attHistoryRV.visibility = View.GONE
-            attUsersRV.visibility = View.VISIBLE
-            editUsersBtn.visibility = View.VISIBLE
+            searchByDateBtn.visibility = GONE
+            getAllAttendanceBtn.visibility = GONE
+            pendingAttendanceBtn.visibility = GONE
+            newAttBtn.visibility = GONE
+            attHistoryRV.visibility = GONE
+            attUsersRV.visibility = VISIBLE
+            editUsersBtn.visibility = if (showEditButton) {
+                editUsersBtn.startAnimation(fadeIn)
+                VISIBLE
+            } else {
+                GONE
+            }
+
             attHistoryRV.startAnimation(fadeOut)
             searchByDateBtn.startAnimation(fadeOut)
             getAllAttendanceBtn.startAnimation(fadeOut)
-            pendingAttendanceBtn.startAnimation(fadeIn)
+            pendingAttendanceBtn.startAnimation(fadeOut)
             newAttBtn.startAnimation(fadeOut)
             attUsersRV.startAnimation(fadeOut)
-            editUsersBtn.startAnimation(fadeIn)
+
             "${currentAttendance.day}/${currentAttendance.month}/${currentAttendance.year}"
                 .also {
                     headerTV.text = it
@@ -287,13 +333,13 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
             val size = usersList.size
             usersList.clear()
             groupOfUsersAdapter.notifyItemRangeRemoved(0, size)
-            searchByDateBtn.visibility = View.VISIBLE
-            attHistoryRV.visibility = View.VISIBLE
-            getAllAttendanceBtn.visibility = View.VISIBLE
-            pendingAttendanceBtn.visibility = View.VISIBLE
-            newAttBtn.visibility = View.VISIBLE
-            attUsersRV.visibility = View.GONE
-            editUsersBtn.visibility = View.GONE
+            searchByDateBtn.visibility = VISIBLE
+            attHistoryRV.visibility = VISIBLE
+            getAllAttendanceBtn.visibility = VISIBLE
+            pendingAttendanceBtn.visibility = VISIBLE
+            newAttBtn.visibility = VISIBLE
+            attUsersRV.visibility = GONE
+            editUsersBtn.visibility = GONE
             searchByDateBtn.startAnimation(fadeIn)
             attHistoryRV.startAnimation(fadeIn)
             getAllAttendanceBtn.startAnimation(fadeIn)
@@ -306,50 +352,156 @@ class AttendanceHistoryFragment : Fragment(R.layout.fragment_attendance_history)
     }
 
     private fun goToAttendanceUsers(attendance: Attendance) {
+
         currentAttendance = attendance
-        switchRV(true)
+
+        val showEditBtn = if (pendingList.any { it.attendance.id == attendance.id }) {
+            val pendingAttendance = pendingList.first { it.attendance.id == attendance.id }
+            !pendingAttendance.startedUpload
+        } else {
+            true
+        }
+        switchRV(true, showEditBtn)
+    }
+
+    private fun handleAttendance(attendance: Attendance) {
+
+        val pendingAttendance = pendingList.firstOrNull { it.attendance.id == attendance.id }
+
+        if (!showingPendingAtt) {
+            deleteAttendance(attendance)
+        } else {
+
+            handleAttDialog = Dialog(requireContext())
+            handleAttDialog.setCancelable(true)
+            handleAttDialog.setContentView(R.layout.layout_handle_att)
+
+            //Init onclick
+            val onClick = View.OnClickListener { p0 ->
+                when (p0!!.id) {
+                    R.id.tv_delete -> {
+                        deleteAttendance(attendance)
+                    }
+                    R.id.tv_upload -> {
+                        val builder: AlertDialog.Builder =
+                            AlertDialog.Builder(activity as MainActivity)
+                        builder.setCancelable(true)
+                        builder.setTitle(R.string.upload_attendance)
+                        builder.setMessage(R.string.upload_attendance_confirmation)
+                        builder.setPositiveButton(R.string.yes) { _, _ ->
+
+                            if (pendingAttendance != null) {
+                                pendingAttViewModel.getAttendanceById(pendingAttendance.databaseId)
+
+                                if (!hasConnection) {
+                                    Toast.makeText(
+                                        requireContext(),
+                                        R.string.pending_attendance,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    if (pendingAttendance.isNewAttendance) {
+                                        Toast.makeText(
+                                            requireContext(),
+                                            R.string.creating_new_att,
+                                            Toast.LENGTH_SHORT
+                                        )
+                                            .show()
+                                    } else {
+                                        Toast.makeText(
+                                            requireContext(),
+                                            R.string.editing_att,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            }
+                        }
+                        builder.setNegativeButton(R.string.no) { _, _ -> }
+                        builder.show()
+                    }
+                }
+                handleAttDialog.dismiss()
+            }
+
+            val deleteTV: TextView = handleAttDialog.findViewById(R.id.tv_delete)
+            val uploadTV: TextView = handleAttDialog.findViewById(R.id.tv_upload)
+
+            deleteTV.setOnClickListener(onClick)
+            uploadTV.setOnClickListener(onClick)
+
+            if (pendingAttendance != null && pendingAttendance.startedUpload) {
+                deleteTV.visibility = GONE
+            }
+
+            val window = handleAttDialog.window
+            window!!.setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT
+            )
+
+            window.setBackgroundDrawable(
+                InsetDrawable(
+                    ColorDrawable(Color.TRANSPARENT),
+                    50
+                )
+            )
+            handleAttDialog.show()
+        }
     }
 
     private fun deleteAttendance(attendance: Attendance) {
         deletedAttendance = attendance
-        totalAttendanceUserAttCount = attendance.usersIDs!!.size
+
+        val cal = Calendar.getInstance()
+        cal.set(attendance.year, attendance.month - 1, attendance.day)
+        val formatter = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            SimpleDateFormat("dd/MM/yy", Locale.ENGLISH)
+        } else {
+            java.text.SimpleDateFormat("dd/MM/yy", Locale.ENGLISH)
+        }
+        val databaseId = formatter.format(cal.time)
+
+        val startedUpload = if (pendingList.any { it.databaseId == databaseId }) {
+            pendingList.first { it.databaseId == databaseId }.startedUpload
+        } else {
+            false
+        }
+
+        val pendingAttendance = PendingAttendance(
+            databaseId,
+            attendance,
+            false,
+            isDeleting = true,
+            startedUpload = startedUpload,
+            allUsers = ArrayList(allUsersList.map { a -> a.userId }),
+            attendedUsers = ArrayList()
+        )
+
         val builder: AlertDialog.Builder = AlertDialog.Builder(activity as MainActivity)
         builder.setCancelable(true)
         builder.setTitle(R.string.delete_attendance)
         builder.setMessage(R.string.delete_attendance_confirmation)
         builder.setPositiveButton(R.string.yes) { _, _ ->
-            (activity as MainActivity).showLoadingDialog()
 
-            if (pendingAttendanceList.contains(attendance)) {// If offline database -> remove from offline database
-                val pendingAttendance = pendingList.first { it.attendance == attendance }
-                pendingAttViewModel.deleteAttendance(pendingAttendance)
-                val deletedItemIndex = attendanceList.indexOf(attendance)
-                attendanceList.remove(attendance)
-                attHistoryAdapter.notifyItemRemoved(deletedItemIndex)
-                (activity as MainActivity).dismissLoadingDialog()
-            }
-
-            if (attendanceList.contains(attendance)) {//Check if attendance is from online or offline database
-                // If online database -> remove from online database
-                if (hasConnection) {
-                    viewModel.deleteAttendance(
-                        attendance.id,
-                        attendance.date!!,
-                        attendance.usersIDs!!
-                    )
-                    val deletedItemIndex = attendanceList.indexOf(attendance)
-                    attendanceList.remove(attendance)
-                    attHistoryAdapter.notifyItemRemoved(deletedItemIndex)
-                } else {
+            if (!startedUpload) {
+                if (pendingList.any { !it.isDeleting }) {
+                    pendingAttViewModel.deleteAttendanceById(databaseId)
                     Toast.makeText(
-                        requireContext(),
-                        R.string.check_connection,
-                        Toast.LENGTH_SHORT
-                    )
+                        requireContext(), R.string.attendance_was_deleted, Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    pendingAttViewModel.addAttendance(pendingAttendance)
+                    Toast.makeText(requireContext(), R.string.deleting_att, Toast.LENGTH_SHORT)
                         .show()
                 }
+            } else {
+                pendingAttViewModel.addAttendance(pendingAttendance)
+                Toast.makeText(requireContext(), R.string.deleting_att, Toast.LENGTH_SHORT)
+                    .show()
             }
         }
+
         builder.setNegativeButton(R.string.no) { _, _ -> }
         builder.show()
     }

@@ -14,7 +14,7 @@ data class Message(
     var date: Date? = null,
     var status: String = "",
     var groupChat: Boolean = false,
-    val seenBy: ArrayList<String> = ArrayList(),
+    val seenBy: ArrayList<SeenBy> = ArrayList(),
     val mentions: ArrayList<String> = ArrayList(),
     var mediaData: ArrayList<MediaData> = ArrayList()
 )

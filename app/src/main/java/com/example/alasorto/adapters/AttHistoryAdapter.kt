@@ -4,15 +4,16 @@ import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.alasorto.dataClass.Attendance
 import com.example.alasorto.R
+import java.math.RoundingMode
 
 class AttHistoryAdapter(
     private val attList: ArrayList<Attendance>,
     private val getAttendance: (Attendance) -> Unit,
-    private val deleteAttendance: (Attendance) -> Unit
+    private val handleAttendance: (Attendance) -> Unit
 ) : RecyclerView.Adapter<AttHistoryAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -28,6 +29,7 @@ class AttHistoryAdapter(
             .also {
                 holder.attDate.text = it
             }
+        "${attendance.attendancePercentage.toBigDecimal().setScale(2, RoundingMode.UP)}%".also { holder.statusTV.text = it }
     }
 
     override fun getItemCount(): Int {
@@ -49,11 +51,12 @@ class AttHistoryAdapter(
 
         private val mAdapter = adapter
 
-        val attDate: Button = itemView.findViewById(R.id.btn_item_text)
+        val attDate: TextView = itemView.findViewById(R.id.tv_user_item_name)
+        val statusTV: TextView = itemView.findViewById(R.id.tv_status)
 
         init {
-            attDate.setOnClickListener(this)
-            attDate.setOnLongClickListener(this)
+            itemView.setOnClickListener(this)
+            itemView.setOnLongClickListener(this)
         }
 
         override fun onClick(p0: View?) {
@@ -61,7 +64,7 @@ class AttHistoryAdapter(
         }
 
         override fun onLongClick(v: View?): Boolean {
-            mAdapter.deleteAttendance(mAdapter.attList[adapterPosition])
+            mAdapter.handleAttendance(mAdapter.attList[adapterPosition])
             return false
         }
     }

@@ -2,7 +2,7 @@
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:backgroundTint="@color/primary_color"
     app:cardCornerRadius="15dp">
@@ -24,15 +24,13 @@
 
         <TextView
             android:id="@+id/tv_comment_owner"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
             android:layout_toEndOf="@+id/iv_comment"
             android:textColor="@color/text_color"
             android:textSize="20sp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0"
             app:layout_constraintStart_toEndOf="@+id/iv_comment"
             app:layout_constraintTop_toTopOf="@+id/iv_comment" />
 
@@ -46,6 +44,7 @@
             android:layout_toEndOf="@+id/iv_comment"
             android:textColor="@color/text_color"
             android:textSize="20sp"
+            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0"
             app:layout_constraintStart_toEndOf="@+id/iv_comment"

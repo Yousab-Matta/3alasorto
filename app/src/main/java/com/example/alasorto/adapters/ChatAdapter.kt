@@ -39,8 +39,7 @@ class ChatAdapter(
     private val pauseMedia: (Int) -> Unit,
     private var enlargeMedia: (ArrayList<MediaData>?, Int, String) -> Unit,
     private val downloadMedia: (Message) -> Unit,
-    private val changeMessageDetailsVisibility: (Boolean) -> Unit,
-    private val isAnonymous: Boolean
+    private val changeMessageDetailsVisibility: (Boolean) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>(), OnPreparedListener,
     MediaPlayer.OnCompletionListener {
 
@@ -263,9 +262,6 @@ class ChatAdapter(
 
         init {
             chatReplyTV.setOnClickListener(this)
-            if (mAdapter.isAnonymous) {
-                chatOwnerTV.visibility = GONE
-            }
             itemView.setOnLongClickListener(this)
             itemView.setOnClickListener(this)
         }
@@ -367,8 +363,8 @@ class ChatAdapter(
 
                         if (message.mentions.isNotEmpty()) {
                             for (userId in message.mentions) {
-                                if (mAdapter.usersList.any { it.phone == userId } && !mentionedUsersDataList.any { it.phone == userId }) {
-                                    mentionedUsersDataList.add(mAdapter.usersList.first { it.phone == userId })
+                                if (mAdapter.usersList.any { it.userId == userId } && !mentionedUsersDataList.any { it.userId == userId }) {
+                                    mentionedUsersDataList.add(mAdapter.usersList.first { it.userId == userId })
                                 }
                             }
                         }
@@ -397,8 +393,8 @@ class ChatAdapter(
 
             if (message.mentions.isNotEmpty()) {
                 for (userId in message.mentions) {
-                    if (mAdapter.usersList.any { it.phone == userId } && !mentionedUsersDataList.any { it.phone == userId }) {
-                        mentionedUsersDataList.add(mAdapter.usersList.first { it.phone == userId })
+                    if (mAdapter.usersList.any { it.userId == userId } && !mentionedUsersDataList.any { it.userId == userId }) {
+                        mentionedUsersDataList.add(mAdapter.usersList.first { it.userId == userId })
                     }
                 }
             }
@@ -415,13 +411,12 @@ class ChatAdapter(
                 chatTextTV.visibility = GONE
             }
 
-            if (mAdapter.usersList.any { it.phone.contains(message.ownerId) }) {
+            if (mAdapter.usersList.any { it.userId == message.ownerId }) {
                 val messageOwnerName =
-                    mAdapter.usersList.first { it.phone.contains(message.ownerId) }.name
+                    mAdapter.usersList.first { it.userId == message.ownerId }.name
                 chatOwnerTV.text = messageOwnerName
             }
         }
-
 
         override fun onClick(v: View?) {
             if (mAdapter.selectedMessage == null) {
@@ -479,9 +474,7 @@ class ChatAdapter(
             seekBar.setOnTouchListener(this)
 
             //If chat is anonymous hide names
-            if (mAdapter.isAnonymous) {
-                chatOwnerTV.visibility = GONE
-            }
+
 
             seekBar.setOnSeekBarChangeListener(object :
                 SeekBar.OnSeekBarChangeListener {
@@ -604,8 +597,8 @@ class ChatAdapter(
 
                         if (message.mentions.isNotEmpty()) {
                             for (userId in message.mentions) {
-                                if (mAdapter.usersList.any { it.phone == userId } && !mentionedUsersDataList.any { it.phone == userId }) {
-                                    mentionedUsersDataList.add(mAdapter.usersList.first { it.phone == userId })
+                                if (mAdapter.usersList.any { it.userId == userId } && !mentionedUsersDataList.any { it.userId == userId }) {
+                                    mentionedUsersDataList.add(mAdapter.usersList.first { it.userId == userId })
                                 }
                             }
                         }
@@ -625,9 +618,9 @@ class ChatAdapter(
                 }
             }
 
-            if (mAdapter.usersList.any { it.phone.contains(message.ownerId) }) {
+            if (mAdapter.usersList.any { it.userId == message.ownerId }) {
                 val messageOwnerName =
-                    mAdapter.usersList.first { it.phone.contains(message.ownerId) }.name
+                    mAdapter.usersList.first { it.userId == message.ownerId }.name
                 chatOwnerTV.text = messageOwnerName
             }
         }
@@ -725,9 +718,7 @@ class ChatAdapter(
             itemView.setOnLongClickListener(this)
             itemView.setOnClickListener(this)
 
-            if (mAdapter.isAnonymous) {
-                chatOwnerTV.visibility = GONE
-            }
+
         }
 
         @SuppressLint("UseCompatLoadingForColorStateLists")
@@ -803,9 +794,11 @@ class ChatAdapter(
 
             timeTV.text = mAdapter.sdf.format(message.date!!)
 
-            if (mAdapter.usersList.any { it.phone.contains(message.ownerId) }) {
+
+            //ToDo: Contains or == ?
+            if (mAdapter.usersList.any { it.userId == message.ownerId }) {
                 val messageOwnerName =
-                    mAdapter.usersList.first { it.phone.contains(message.ownerId) }.name
+                    mAdapter.usersList.first { it.userId == message.ownerId }.name
                 chatOwnerTV.text = messageOwnerName
             }
         }

@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@color/fragment_bg">
 
-    <RelativeLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -20,7 +20,6 @@
             android:layout_height="50dp"
             android:background="@drawable/round_bottom_corners"
             android:backgroundTint="@color/primary_color"
-            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
@@ -56,250 +55,246 @@
 
         </RelativeLayout>
 
-        <EditText
-            android:id="@+id/et_user_name"
-            style="@style/EditTextCustomStyle"
-            android:layout_width="300dp"
-            android:layout_height="40dp"
-            android:layout_below="@+id/rl_header"
-            android:layout_centerHorizontal="true"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:autofillHints=""
-            android:hint="@string/user_name"
-            android:inputType="text"
-            android:nextFocusDown="@id/et_phone_num"
-            app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent"
-            tools:ignore="TouchTargetSizeCheck,TouchTargetSizeCheck" />
-
-        <EditText
-            android:id="@+id/et_phone_num"
-            style="@style/EditTextCustomStyle"
-            android:layout_width="300dp"
-            android:layout_height="40dp"
-            android:layout_below="@+id/et_user_name"
-            android:layout_centerHorizontal="true"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:autofillHints=""
-            android:hint="@string/phone_number"
-            android:inputType="phone"
-            android:maxLength="11"
-            android:nextFocusDown="@id/et_address"
-            app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent"
-            tools:ignore="TouchTargetSizeCheck" />
-
-        <EditText
-            android:id="@+id/et_address"
-            style="@style/EditTextCustomStyle"
-            android:layout_width="300dp"
-            android:layout_height="40dp"
-            android:layout_below="@+id/et_phone_num"
-            android:layout_centerHorizontal="true"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:autofillHints=""
-            android:hint="@string/address"
-            android:inputType="text"
-            android:nextFocusDown="@id/et_location"
-            app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent"
-            tools:ignore="TouchTargetSizeCheck,TouchTargetSizeCheck" />
-
-        <EditText
-            android:id="@+id/et_location"
-            style="@style/EditTextCustomStyle"
-            android:layout_width="300dp"
-            android:layout_height="40dp"
-            android:layout_below="@+id/et_address"
-            android:layout_centerHorizontal="true"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:autofillHints=""
-            android:hint="@string/location"
-            android:inputType="text"
-            android:nextFocusDown="@id/et_confession_priest"
-            app:layout_constraintTop_toBottomOf="parent"
-            tools:ignore="TouchTargetSizeCheck" />
-
-        <EditText
-            android:id="@+id/et_confession_priest"
-            style="@style/EditTextCustomStyle"
-            android:layout_width="300dp"
-            android:layout_height="40dp"
-            android:layout_below="@+id/et_location"
-            android:layout_centerHorizontal="true"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:autofillHints=""
-            android:hint="@string/confession_priest"
-            android:inputType="text"
-            android:nextFocusDown="@id/et_points"
-            app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent"
-            tools:ignore="TouchTargetSizeCheck" />
-
-        <EditText
-            android:id="@+id/et_points"
-            style="@style/EditTextCustomStyle"
-            android:layout_width="300dp"
-            android:layout_height="40dp"
-            android:layout_below="@+id/et_confession_priest"
-            android:layout_centerHorizontal="true"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:autofillHints=""
-            android:hint="@string/points"
-            android:inputType="number"
-            android:nextFocusDown="@id/et_college"
-            app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent"
-            tools:ignore="TouchTargetSizeCheck" />
-
-        <EditText
-            android:id="@+id/et_college"
-            style="@style/EditTextCustomStyle"
-            android:layout_width="300dp"
-            android:layout_height="40dp"
-            android:layout_below="@+id/et_points"
-            android:layout_centerHorizontal="true"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:autofillHints=""
-            android:hint="@string/college"
-            android:inputType="text"
-            android:nextFocusDown="@id/et_uni"
-            app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent"
-            tools:ignore="TouchTargetSizeCheck" />
-
-        <EditText
-            android:id="@+id/et_uni"
-            style="@style/EditTextCustomStyle"
-            android:layout_width="300dp"
-            android:layout_height="40dp"
-            android:layout_below="@+id/et_college"
-            android:layout_centerHorizontal="true"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="20dp"
-            android:autofillHints=""
-            android:hint="@string/university"
-            android:inputType="text"
-            android:nextFocusDown="@id/et_birth_day"
-            app:drawableTint="@color/design_default_color_error"
-            app:layout_constraintTop_toBottomOf="parent" />
-
-        <TextView
-            android:id="@+id/tb_birth_date"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/et_uni"
-            android:layout_alignStart="@+id/et_confession_priest"
-            android:layout_marginTop="15dp"
-            android:text="@string/birth_date"
-            android:textColor="@color/text_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
         <LinearLayout
-            android:id="@+id/ll_create_user"
-            android:layout_width="300dp"
+            android:id="@+id/linearLayout2"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/tb_birth_date"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="15dp">
+            android:orientation="vertical"
+            android:paddingHorizontal="10dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/rl_header">
 
             <EditText
-                android:id="@+id/et_birth_day"
+                android:id="@+id/et_user_name"
                 style="@style/EditTextCustomStyle"
-                android:layout_width="95dp"
+                android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_marginStart="0dp"
-                android:layout_marginEnd="5dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="15dp"
                 android:autofillHints=""
-                android:gravity="center"
-                android:hint="@string/day"
-                android:inputType="number"
-                android:maxLength="2"
-                android:nextFocusDown="@id/et_birth_month"
-                android:paddingHorizontal="5dp"
-                app:drawableTint="@color/design_default_color_error" />
+                android:hint="@string/user_name"
+                android:inputType="text"
+                android:nextFocusDown="@id/et_phone_num"
+                app:drawableTint="@color/design_default_color_error"
+                app:layout_constraintTop_toBottomOf="parent"
+                tools:ignore="TouchTargetSizeCheck,TouchTargetSizeCheck" />
 
             <EditText
-                android:id="@+id/et_birth_month"
+                android:id="@+id/et_phone_num"
                 style="@style/EditTextCustomStyle"
-                android:layout_width="95dp"
+                android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_marginStart="0dp"
-                android:layout_marginEnd="5dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="15dp"
                 android:autofillHints=""
-                android:gravity="center"
-                android:hint="@string/month"
-                android:inputType="number"
-                android:maxLength="2"
-                android:nextFocusDown="@id/et_birth_year"
-                android:paddingHorizontal="5dp"
-                app:drawableTint="@color/design_default_color_error" />
+                android:hint="@string/phone_number"
+                android:inputType="phone"
+                android:maxLength="11"
+                android:nextFocusDown="@id/et_address"
+                app:drawableTint="@color/design_default_color_error"
+                app:layout_constraintTop_toBottomOf="parent"
+                tools:ignore="TouchTargetSizeCheck" />
 
             <EditText
-                android:id="@+id/et_birth_year"
+                android:id="@+id/et_address"
                 style="@style/EditTextCustomStyle"
-                android:layout_width="100dp"
+                android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_marginStart="0dp"
-                android:layout_marginEnd="0dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="15dp"
                 android:autofillHints=""
-                android:gravity="center"
-                android:hint="@string/year"
+                android:hint="@string/address"
+                android:inputType="text"
+                android:nextFocusDown="@id/et_location"
+                app:drawableTint="@color/design_default_color_error"
+                app:layout_constraintTop_toBottomOf="parent"
+                tools:ignore="TouchTargetSizeCheck,TouchTargetSizeCheck" />
+
+            <EditText
+                android:id="@+id/et_location"
+                style="@style/EditTextCustomStyle"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="15dp"
+                android:autofillHints=""
+                android:hint="@string/location"
+                android:inputType="text"
+                android:nextFocusDown="@id/et_confession_priest"
+                app:layout_constraintTop_toBottomOf="parent"
+                tools:ignore="TouchTargetSizeCheck" />
+
+            <EditText
+                android:id="@+id/et_confession_priest"
+                style="@style/EditTextCustomStyle"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="15dp"
+                android:autofillHints=""
+                android:hint="@string/confession_priest"
+                android:inputType="text"
+                android:nextFocusDown="@id/et_points"
+                app:drawableTint="@color/design_default_color_error"
+                app:layout_constraintTop_toBottomOf="parent"
+                tools:ignore="TouchTargetSizeCheck" />
+
+            <EditText
+                android:id="@+id/et_points"
+                style="@style/EditTextCustomStyle"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="15dp"
+                android:autofillHints=""
+                android:hint="@string/points"
                 android:inputType="number"
-                android:maxLength="4"
-                android:paddingHorizontal="5dp"
-                app:drawableTint="@color/design_default_color_error" />
+                android:nextFocusDown="@id/et_college"
+                app:drawableTint="@color/design_default_color_error"
+                app:layout_constraintTop_toBottomOf="parent"
+                tools:ignore="TouchTargetSizeCheck" />
+
+            <EditText
+                android:id="@+id/et_college"
+                style="@style/EditTextCustomStyle"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="15dp"
+                android:autofillHints=""
+                android:hint="@string/college"
+                android:inputType="text"
+                android:nextFocusDown="@id/et_uni"
+                app:drawableTint="@color/design_default_color_error"
+                app:layout_constraintTop_toBottomOf="parent"
+                tools:ignore="TouchTargetSizeCheck" />
+
+            <EditText
+                android:id="@+id/et_uni"
+                style="@style/EditTextCustomStyle"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="15dp"
+                android:autofillHints=""
+                android:hint="@string/university"
+                android:inputType="text"
+                android:nextFocusDown="@id/et_birth_day"
+                app:drawableTint="@color/design_default_color_error"
+                app:layout_constraintTop_toBottomOf="parent" />
+
+            <TextView
+                android:id="@+id/tb_birth_date"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="15dp"
+                android:text="@string/birth_date"
+                android:textColor="@color/text_color"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/ll_create_user"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="15dp"
+                android:weightSum="3">
+
+                <EditText
+                    android:id="@+id/et_birth_day"
+                    style="@style/EditTextCustomStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="0dp"
+                    android:layout_weight="1"
+                    android:autofillHints=""
+                    android:gravity="center"
+                    android:hint="@string/day"
+                    android:inputType="number"
+                    android:maxLength="2"
+                    android:nextFocusDown="@id/et_birth_month"
+                    android:paddingHorizontal="5dp"
+                    app:drawableTint="@color/design_default_color_error" />
+
+                <EditText
+                    android:id="@+id/et_birth_month"
+                    style="@style/EditTextCustomStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:autofillHints=""
+                    android:gravity="center"
+                    android:hint="@string/month"
+                    android:inputType="number"
+                    android:maxLength="2"
+                    android:nextFocusDown="@id/et_birth_year"
+                    android:paddingHorizontal="5dp"
+                    app:drawableTint="@color/design_default_color_error" />
+
+                <EditText
+                    android:id="@+id/et_birth_year"
+                    style="@style/EditTextCustomStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:autofillHints=""
+                    android:gravity="center"
+                    android:hint="@string/year"
+                    android:inputType="number"
+                    android:maxLength="4"
+                    app:drawableTint="@color/design_default_color_error" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_create_user_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="15dp"
+                android:text="@string/status"
+                android:textColor="@color/text_color"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="15dp"
+                android:weightSum="5">
+
+                <Spinner
+                    android:id="@+id/spinner_status"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="3"
+                    android:gravity="center"
+                    android:textColor="@color/text_color"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <EditText
+                    android:id="@+id/et_status_year"
+                    style="@style/EditTextCustomStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="2"
+                    android:autofillHints=""
+                    android:gravity="center"
+                    android:hint="@string/year"
+                    android:inputType="number"
+                    android:maxLength="4"
+                    app:drawableTint="@color/design_default_color_error"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+            </LinearLayout>
+
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/tv_create_user_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/ll_create_user"
-            android:layout_alignStart="@+id/ll_create_user"
-            android:layout_marginTop="15dp"
-            android:text="@string/status"
-            android:textColor="@color/text_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <Spinner
-            android:id="@+id/spinner_status"
-            android:layout_width="150dp"
-            android:layout_height="40dp"
-            android:layout_below="@+id/tv_create_user_status"
-            android:layout_alignStart="@+id/tv_create_user_status"
-            android:layout_marginTop="15dp"
-            android:gravity="center"
-            android:textColor="@color/text_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <EditText
-            android:id="@+id/et_status_year"
-            style="@style/EditTextCustomStyle"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_alignTop="@+id/spinner_status"
-            android:layout_alignEnd="@+id/ll_create_user"
-            android:layout_marginStart="10dp"
-            android:layout_marginEnd="0dp"
-            android:layout_toEndOf="@+id/spinner_status"
-            android:autofillHints=""
-            android:gravity="center"
-            android:hint="@string/year"
-            android:inputType="number"
-            android:maxLength="4"
-            android:paddingHorizontal="5dp"
-            app:drawableTint="@color/design_default_color_error" />
-
-    </RelativeLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

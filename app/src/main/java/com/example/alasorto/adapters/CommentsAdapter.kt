@@ -38,8 +38,8 @@ class CommentsAdapter(
 
             if (comment.mentionsList.isNotEmpty()) {
                 for (userId in comment.mentionsList) {
-                    if (usersList.any { it.phone == userId } && !mentionedUsersDataList.any { it.phone == userId }) {
-                        mentionedUsersDataList.add(usersList.first { it.phone == userId })
+                    if (usersList.any { it.userId == userId } && !mentionedUsersDataList.any { it.userId == userId }) {
+                        mentionedUsersDataList.add(usersList.first { it.userId == userId })
                     }
                 }
             }
@@ -56,11 +56,15 @@ class CommentsAdapter(
 
         if (comment.media != null) {
             holder.mediaLayout.visibility = VISIBLE
+            val params = holder.mediaLayout.layoutParams as ConstraintLayout.LayoutParams
+            params.matchConstraintPercentWidth = .7f
+            holder.mediaLayout.layoutParams = params
+            holder.mediaLayout.requestLayout()
             holder.mediaLayoutController.setView(comment.media!!, holder.mediaLayout, enlargeMedia)
         }
 
-        if (usersList.any { it.phone == comment.ownerId }) {
-            val owner = usersList.first { it.phone == comment.ownerId }
+        if (usersList.any { it.userId == comment.ownerId }) {
+            val owner = usersList.first { it.userId == comment.ownerId }
             holder.userNameTV.text = owner.name
             if (owner.imageLink.isNotEmpty()) {
                 Glide.with(holder.userImageIV).load(owner.imageLink).into(holder.userImageIV)

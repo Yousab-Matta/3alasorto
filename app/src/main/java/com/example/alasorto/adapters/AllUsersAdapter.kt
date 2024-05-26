@@ -8,12 +8,12 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.alasorto.R
 import com.example.alasorto.dataClass.UserData
+import java.lang.reflect.Array.set
 
 class AllUsersAdapter(
     usersList: ArrayList<UserData>,
@@ -55,14 +55,14 @@ class AllUsersAdapter(
     fun selectUser(userId: String) {
         isSelectionEnabled = true
 
-        if (!selectedUsersList.any { it.phone == userId }) {
-            selectedUsersList.add(filteredUsersList.first { it.phone == userId })
+        if (!selectedUsersList.any { it.userId == userId }) {
+            selectedUsersList.add(filteredUsersList.first { it.userId == userId })
         } else {
-            selectedUsersList.remove(filteredUsersList.first { it.phone == userId })
+            selectedUsersList.remove(filteredUsersList.first { it.userId == userId })
         }
 
-        if (filteredUsersList.any { it.phone == userId }) {
-            notifyItemChanged(filteredUsersList.indexOfFirst { it.phone == userId })
+        if (filteredUsersList.any { it.userId == userId }) {
+            notifyItemChanged(filteredUsersList.indexOfFirst { it.userId == userId })
         }
 
         setSelectedUserCounterText()
@@ -106,8 +106,17 @@ class AllUsersAdapter(
 
         holder.nameTV.text = user.name
 
-        val attendancePercent = if (user.attendedTimes != 0 && user.attendanceDue != 0) {
-            ((user.attendedTimes.toFloat() / user.attendanceDue.toFloat()) * 100)
+        val attendedTimesList = user.attendedTimes
+        val attendanceDueList = user.attendanceDue
+
+        attendedTimesList.removeAll(setOf(""))
+        attendanceDueList.removeAll(setOf(""))
+
+        val attendedTimes = attendedTimesList.toSet().size
+        val attendanceDue = attendanceDueList.toSet().size
+
+        val attendancePercent = if (attendedTimes != 0 && attendanceDue != 0) {
+            attendedTimes.toFloat() / attendanceDue.toFloat() * 100
         } else {
             0f
         }
@@ -152,7 +161,7 @@ class AllUsersAdapter(
             val selectedUser = adapter.getFilteredList()[layoutPosition]
 
             if (adapter.isSelectionEnabled) {
-                adapter.selectUser(selectedUser.phone)
+                adapter.selectUser(selectedUser.userId)
             } else {
                 adapter.goToUserProfile(selectedUser)
             }
@@ -160,7 +169,7 @@ class AllUsersAdapter(
 
         override fun onLongClick(p0: View?): Boolean {
             val selectedUser = adapter.getFilteredList()[layoutPosition]
-            adapter.selectUser(selectedUser.phone)
+            adapter.selectUser(selectedUser.userId)
             return true
         }
     }

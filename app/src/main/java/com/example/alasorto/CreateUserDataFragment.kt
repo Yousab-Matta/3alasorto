@@ -19,11 +19,14 @@ import com.example.alasorto.dataClass.UserData
 import com.example.alasorto.utils.TextWatcherCreateUser
 import com.example.alasorto.viewModels.AppViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import java.util.*
 import kotlin.collections.ArrayList
 
 @Suppress("DEPRECATION")
-class CreateUserDataFragment : Fragment(R.layout.fragment_create_user_data), AdapterView.OnItemSelectedListener {
+class CreateUserDataFragment : Fragment(R.layout.fragment_create_user_data),
+    AdapterView.OnItemSelectedListener {
 
     //Widgets
     private lateinit var nameET: EditText
@@ -42,7 +45,7 @@ class CreateUserDataFragment : Fragment(R.layout.fragment_create_user_data), Ada
     private lateinit var saveUserBtn: ImageButton
     private lateinit var statusSpinner: Spinner
     private lateinit var viewModel: AppViewModel
-    private lateinit var dialog: Dialog
+    private lateinit var loadingDialog: Dialog
     private lateinit var builder: android.app.AlertDialog.Builder
     private lateinit var window: Window
 
@@ -72,6 +75,14 @@ class CreateUserDataFragment : Fragment(R.layout.fragment_create_user_data), Ada
         titleTV = view.findViewById(R.id.tv_create_user_title)
         saveUserBtn = view.findViewById(R.id.btn_save_user)
         statusSpinner = view.findViewById(R.id.spinner_status)
+
+        //Create loading Dialogue
+        loadingDialog = Dialog(requireContext())
+        loadingDialog.setCancelable(false)
+        loadingDialog.setContentView(R.layout.progress_dialogue)
+        loadingDialog.window!!.setBackgroundDrawable(
+            InsetDrawable(ColorDrawable(Color.TRANSPARENT), 40)
+        )
 
         val args = this.arguments
         if (args != null) {
@@ -119,13 +130,6 @@ class CreateUserDataFragment : Fragment(R.layout.fragment_create_user_data), Ada
         birthYearET.addTextChangedListener(TextWatcherCreateUser(birthYearET, requireContext()))
         statusYearET.addTextChangedListener(TextWatcherCreateUser(statusYearET, requireContext()))
 
-        //Create loading Dialogue
-        dialog = Dialog(requireContext())
-        dialog.setCancelable(false)
-        dialog.setContentView(R.layout.progress_dialogue)
-        dialog.window!!.setBackgroundDrawable(
-            InsetDrawable(ColorDrawable(Color.TRANSPARENT), 40)
-        )
 
         //Initialize ViewModel
         viewModel = ViewModelProvider(this)[AppViewModel::class.java]
@@ -152,10 +156,17 @@ class CreateUserDataFragment : Fragment(R.layout.fragment_create_user_data), Ada
         }
 
         viewModel.dismissFragmentMLD.observe(this.viewLifecycleOwner, Observer {
-            if (it && isNewUser && isCurrentUser) {
-                goToPendingVerificationFragment()
+            if (it) {
+                if (isCurrentUser) {
+                    if (isNewUser) {
+                        goToPendingVerificationFragment()
+                    } else {
+                        dismissFragment()
+                    }
+                } else {
+                    resetFragment(it)
+                }
             }
-            resetFragment(it)
         })
 
         saveUserBtn.setOnClickListener(View.OnClickListener
@@ -178,17 +189,21 @@ class CreateUserDataFragment : Fragment(R.layout.fragment_create_user_data), Ada
         requireActivity().onBackPressedDispatcher.addCallback(
             this.viewLifecycleOwner, object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    requireActivity().supportFragmentManager.popBackStack(
-                        "HANDLE_USERS_FRAGMENT",
-                        FragmentManager.POP_BACK_STACK_INCLUSIVE
-                    )
+                    dismissFragment()
                     this.isEnabled = false
                 }
             })
     }
 
-    private fun createData() {
+    private fun dismissFragment() {
+        loadingDialog.dismiss()
+        requireActivity().supportFragmentManager.popBackStack(
+            "HANDLE_USERS_FRAGMENT",
+            FragmentManager.POP_BACK_STACK_INCLUSIVE
+        )
+    }
 
+    private fun createData() {
         val name = nameET.text.toString().trim()
         if (phoneNum.isEmpty()) {
             phoneNum = "+2${phoneET.text.toString().trim()}"
@@ -235,10 +250,11 @@ class CreateUserDataFragment : Fragment(R.layout.fragment_create_user_data), Ada
             && day.isNotEmpty() && month.isNotEmpty()
             && year.isNotEmpty() && statusYear.isNotEmpty()
         ) {
-            dialog.show()
+            loadingDialog.show()
+            val userId = Firebase.firestore.collection("Users").document().id
             val user = UserData(
-                name, 0, 0,
-                location, address, "", cp, phoneNum,
+                name, ArrayList(), ArrayList(),
+                location, address, "", cp, phoneNum, userId,
                 day.toInt(), month.toInt(), year.toInt(),
                 points, college,
                 uni, status, "", statusYear.toInt(),
@@ -256,7 +272,7 @@ class CreateUserDataFragment : Fragment(R.layout.fragment_create_user_data), Ada
     }
 
     private fun resetFragment(isSuccess: Boolean) {
-        dialog.dismiss()
+        loadingDialog.dismiss()
         if (isSuccess) {
             Toast.makeText(context, R.string.user_data_created, Toast.LENGTH_SHORT).show()
             nameET.text.clear()
@@ -272,6 +288,8 @@ class CreateUserDataFragment : Fragment(R.layout.fragment_create_user_data), Ada
             collegeET.text.clear()
             uniET.text.clear()
             statusYearET.text.clear()
+            phoneNum = ""
+            status = "Student"
         } else {
             Toast.makeText(context, getString(R.string.user_data_not_created), Toast.LENGTH_SHORT)
                 .show()

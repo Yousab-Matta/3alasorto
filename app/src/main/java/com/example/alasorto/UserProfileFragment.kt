@@ -25,6 +25,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import com.bumptech.glide.Glide
 import com.example.alasorto.dataClass.*
+import com.example.alasorto.utils.DateUtils
 import com.example.alasorto.utils.InternetCheck
 import com.example.alasorto.viewModels.AppViewModel
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -46,8 +47,9 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
     }
 
     private val viewModel: AppViewModel by viewModels()
-    private val currentUserId = FirebaseAuth.getInstance().currentUser!!.phoneNumber!!
+    private val userPhone = FirebaseAuth.getInstance().currentUser!!.phoneNumber!!
 
+    private var currentUserId = ""
     private var currentProfileUser: UserData? = null
     private var userImageUri: Uri? = null
     private var coverImageUri: Uri? = null
@@ -66,8 +68,8 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
     private lateinit var internetCheck: InternetCheck
     private lateinit var progressView: PercentageChartView
     private lateinit var saveProfileChangesBtn: ImageButton
-    private lateinit var editProfileDataBtn: ImageButton
-    private lateinit var chatWithFatherBtn: Button
+    private lateinit var chatWithFatherBtn: Button //Create new chat with priest
+    private lateinit var usersPersonalChats: Button //Get users chats with priest (only priest is allowed to access this)
     private lateinit var spiritualNotesBtn: Button
     private lateinit var mActivity: MainActivity
 
@@ -82,6 +84,7 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
         super.onViewCreated(view, savedInstanceState)
 
         mActivity = (activity as MainActivity)
+        currentUserId = mActivity.getCurrentUserId()
 
         view.isClickable = true
 
@@ -91,18 +94,7 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
             hasConnection = it
         }
 
-        bioET = view.findViewById(R.id.et_profile_bio)
-        bioTV = view.findViewById(R.id.tv_profile_bio)
-        nameTV = view.findViewById(R.id.tv_profile_name)
-        userIV = view.findViewById(R.id.iv_profile_image)
-        coverIV = view.findViewById(R.id.iv_profile_cover)
-        pointsTV = view.findViewById(R.id.tv_profile_points)
-        birthdayTV = view.findViewById(R.id.tv_profile_birthday)
-        progressView = view.findViewById(R.id.profile_progress_view)
-        saveProfileChangesBtn = view.findViewById(R.id.btn_save_profile)
-        editProfileDataBtn = view.findViewById(R.id.btn_edit_profile)
-        chatWithFatherBtn = view.findViewById(R.id.btn_chat_with_father)
-        spiritualNotesBtn = view.findViewById(R.id.btn_spiritual_notes)
+        initViews(view)
 
         handleUsersButton = view.findViewById(R.id.btn_users)
         attendanceBtn = view.findViewById(R.id.btn_go_to_attendance)
@@ -134,13 +126,15 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
         }
 
         //Initialize user
-        currentProfileUser = mActivity.getCurrentUser()
+        currentProfileUser = mActivity.getCurrentUserData()
 
         //Set user data to views
         setUserData()
 
         //Observe changes in current user's data
         viewModel.currentUserMLD.observe(this.viewLifecycleOwner, Observer {
+            isBioChanged = false
+            isImageChanged = false
             currentProfileUser = it
             setUserData()
             mActivity.dismissLoadingDialog()
@@ -157,13 +151,16 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
                 //If it doesn't exits -> Create new one
                 val documentReference =
                     Firebase.firestore.collection("ChatWithFather").document().id
+                val date = DateUtils().getTime()
                 val safeSpace =
-                    SafeSpace(currentUserId, documentReference, "", null, true)
+                    SafeSpace(currentUserId, documentReference, date)
                 viewModel.createSafeSpace(safeSpace)
             }
         })
 
         viewModel.dismissFragmentMLD.observe(this.viewLifecycleOwner, Observer {
+            bioET.visibility = GONE
+            bioTV.visibility = VISIBLE
             mActivity.dismissLoadingDialog()
         })
 
@@ -194,15 +191,13 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
             saveProfileEdits()
         }
 
-        editProfileDataBtn.setOnClickListener {
-            if (currentProfileUser != null) {
-                goToEditUserFragment()
-            }
-        }
-
         chatWithFatherBtn.setOnClickListener {
             mActivity.showLoadingDialog()
             viewModel.getSafeSpaceById(currentUserId)
+        }
+
+        usersPersonalChats.setOnClickListener {
+            goToUsersPersonalChatsWithFather()
         }
 
         spiritualNotesBtn.setOnClickListener {
@@ -260,12 +255,27 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
 
         //Observes Changes un profile
         Firebase.firestore.collection("Users")
-            .document(currentUserId)
+            .document(userPhone)
             .addSnapshotListener { _, _ ->
                 if (hasConnection) {
                     viewModel.getCurrentUser()
                 }
             }
+    }
+
+    private fun initViews(view: View) {
+        bioET = view.findViewById(R.id.et_profile_bio)
+        bioTV = view.findViewById(R.id.tv_profile_bio)
+        nameTV = view.findViewById(R.id.tv_profile_name)
+        userIV = view.findViewById(R.id.iv_profile_image)
+        coverIV = view.findViewById(R.id.iv_profile_cover)
+        pointsTV = view.findViewById(R.id.tv_profile_points)
+        birthdayTV = view.findViewById(R.id.tv_profile_birthday)
+        progressView = view.findViewById(R.id.profile_progress_view)
+        saveProfileChangesBtn = view.findViewById(R.id.btn_save_profile)
+        chatWithFatherBtn = view.findViewById(R.id.btn_chat_with_father)
+        usersPersonalChats = view.findViewById(R.id.users_personal_chats)
+        spiritualNotesBtn = view.findViewById(R.id.btn_spiritual_notes)
     }
 
     private fun saveProfileEdits() {
@@ -283,7 +293,7 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
 
             //Update Bio
             if (isBioChanged) {
-                viewModel.updateUserBio(bioET.text.toString(), currentUserId)
+                viewModel.updateUserBio(bioET.text.toString())
 
                 saveProfileChangesBtn.visibility = GONE
                 userImageUri = null
@@ -458,6 +468,12 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
                     }
                 }
             })
+
+        Firebase.firestore.collection("Users").document().addSnapshotListener { _, _ ->
+            if (hasConnection) {
+                viewModel.getAllUsers()
+            }
+        }
     }
 
     private fun discardChanges() {
@@ -502,8 +518,9 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
                 Glide.with(coverIV).load(currentProfileUser!!.coverImageLink).into(coverIV)
             }
 
-            val attendedTimes = currentProfileUser!!.attendedTimes
-            val attendanceDue = currentProfileUser!!.attendanceDue
+            val attendedTimes = currentProfileUser!!.attendedTimes.toSet().size
+
+            val attendanceDue = currentProfileUser!!.attendanceDue.toSet().size
 
             val attendancePercent = if (attendedTimes != 0 && attendanceDue != 0) {
                 ((attendedTimes.toFloat() / attendanceDue.toFloat()) * 100)
@@ -519,14 +536,14 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
         }
     }
 
+
     private fun goToChatFragment(safeSpace: SafeSpace) {
         val fragment = ChatFragment()
         val manager = requireActivity().supportFragmentManager
         val transaction = manager.beginTransaction()
         val bundle = Bundle()
-        bundle.putString("CHAT_ID", currentUserId)
+        bundle.putString("GROUP_ID", currentUserId)
         bundle.putString("COLLECTION_PATH", "ChatWithFather")
-        bundle.putBoolean("IS_ANONYMOUS", true)
         bundle.putParcelable("SAFE_SPACE_ITEM", safeSpace)
         fragment.arguments = bundle
         transaction.add(R.id.main_frame, fragment)
@@ -534,18 +551,11 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
         transaction.commit()
     }
 
-    private fun goToEditUserFragment() {
+    private fun goToUsersPersonalChatsWithFather() {
         val manager = requireActivity().supportFragmentManager
         val transaction = manager.beginTransaction()
-        val fragment = CreateUserDataFragment()
-        val bundle = Bundle()
-        bundle.putParcelable("Editing_User", currentProfileUser)
-        bundle.putBoolean("isNewUser", false)
-        bundle.putBoolean("IS_POINTS_ET_ENABLED", false)
-        bundle.putString("PHONE_NUM", currentUserId)
-        fragment.arguments = bundle
-        transaction.add(R.id.main_frame, fragment)
-        transaction.addToBackStack("HANDLE_USERS_FRAGMENT")
+        transaction.add(R.id.main_frame, ChatWithFatherFragment())
+        transaction.addToBackStack("CHAT_WITH_FATHER_FRAGMENT")
         transaction.commit()
     }
 
@@ -602,6 +612,9 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
             if (currentProfileUser!!.access.contains("HANDLE_USERS_VERIFICATION")) {
                 verifyUsersBtn.visibility = VISIBLE
             }
+            if (currentProfileUser!!.access.contains("CHAT_WITH_FATHER")) {
+                usersPersonalChats.visibility = VISIBLE
+            }
         }
     }
 
@@ -649,27 +662,4 @@ class UserProfileFragment : Fragment(R.layout.fragment_user_profile) {
         transaction.addToBackStack("SPIRITUAL_NOTES_FRAGMENT")
         transaction.commit()
     }
-
-    /*
-    private fun goToGroupsFragment() {
-        val fragment = GroupsFragment()
-        val manager = requireActivity().supportFragmentManager
-        val transaction = manager.beginTransaction()
-        val bundle = Bundle()
-        bundle.putBoolean("SelectionEnabled", false)
-        fragment.arguments = bundle
-        transaction.add(R.id.main_frame, fragment)
-        transaction.addToBackStack("GROUPS_FRAGMENT")
-        transaction.commit()
-    }
-    private fun goToSettingsFragment() {
-        val fragment = SettingsFragment()
-        val manager = requireActivity().supportFragmentManager
-        val transaction = manager.beginTransaction()
-        transaction.add(R.id.main_frame, fragment)
-        transaction.addToBackStack("SETTINGS_FRAGMENT")
-        transaction.commit()
-    }
-
-*/
 }

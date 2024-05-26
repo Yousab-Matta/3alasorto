@@ -34,7 +34,7 @@ import com.google.firebase.ktx.Firebase
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-class VerifyPhoneFragment : Fragment() {
+class VerifyPhoneFragment : Fragment(R.layout.fragment_verify_phone) {
 
     private val appViewModel: AppViewModel by viewModels()
 
@@ -47,7 +47,6 @@ class VerifyPhoneFragment : Fragment() {
     private lateinit var id: String
     private lateinit var currentUserNumber: String
     private lateinit var resendToken: PhoneAuthProvider.ForceResendingToken
-    private lateinit var keepLoggedInCb: CheckBox
     private lateinit var verifyBtn: Button
     private lateinit var verifyCode: String
     private lateinit var otpView: OTPView
@@ -55,12 +54,6 @@ class VerifyPhoneFragment : Fragment() {
 
     private var hasConnection = false
     private var currentUser: UserData? = null
-
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View {
-        return inflater.inflate(R.layout.fragment_verify_phone, container, false)
-    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -81,7 +74,6 @@ class VerifyPhoneFragment : Fragment() {
         verifyBtn = view.findViewById(R.id.btn_verify)
         otpLayout = view.findViewById(R.id.layout_otp)
         timerTV = view.findViewById(R.id.tv_verification_timer)
-        keepLoggedInCb = view.findViewById(R.id.cb_keep_logged_in)
 
         //Check internet connection
         internetCheck = InternetCheck(requireActivity().application)
@@ -102,7 +94,7 @@ class VerifyPhoneFragment : Fragment() {
 
         otpView = OTPView(otpLayout, mActivity)
 
-        appViewModel.userByIdMLD.observe(this.viewLifecycleOwner, Observer {
+        appViewModel.currentUserMLD.observe(this.viewLifecycleOwner, Observer {
             dialog.dismiss()
             if (it != null) {
                 currentUser = it
@@ -115,7 +107,6 @@ class VerifyPhoneFragment : Fragment() {
                 goToCreateUserDataFragment()
             }
         })
-
 
         timerTV.setOnClickListener(View.OnClickListener {
             resendVerificationCode(currentUserNumber, resendToken)
@@ -141,7 +132,7 @@ class VerifyPhoneFragment : Fragment() {
         Firebase.firestore.collection("Users")
             .addSnapshotListener { _, _ ->
                 if (currentUser != null) {
-                    appViewModel.getUserById(currentUserNumber)
+                    appViewModel.getCurrentUser()
                 }
             }
     }
@@ -152,18 +143,15 @@ class VerifyPhoneFragment : Fragment() {
         Firebase.auth.signInWithCredential(credential)
             .addOnCompleteListener(AuthActivity()) { task ->
                 if (task.isSuccessful) {
+
                     //Set Keep Logged in SharedPreferences
-                    if (keepLoggedInCb.isChecked) {
-                        val sharedPreferences =
-                            requireContext().getSharedPreferences(
-                                "KeepLoggedIn",
-                                Context.MODE_PRIVATE
-                            )
-                        val editor = sharedPreferences!!.edit()
-                        editor.putBoolean("IsLoggedIn", true)
-                        editor.apply()
-                    }
-                    appViewModel.getUserById(currentUserNumber)
+                    val sharedPreferences =
+                        requireContext().getSharedPreferences("KeepLoggedIn", Context.MODE_PRIVATE)
+                    val editor = sharedPreferences!!.edit()
+                    editor.putBoolean("IsLoggedIn", true)
+                    editor.apply()
+                    appViewModel.getCurrentUser()
+
                 } else {
                     dialog.dismiss()
 
@@ -220,9 +208,6 @@ class VerifyPhoneFragment : Fragment() {
     private fun goToPendingVerificationFragment() {
         val fragment = PendingVerificationFragment()
         val manager = requireActivity().supportFragmentManager
-        val args = Bundle()
-        args.putBoolean("KEEP_LOGGED_IN", keepLoggedInCb.isChecked)
-        fragment.arguments = args
         val transaction = manager.beginTransaction()
         transaction.replace(R.id.auth_frame, fragment)
         transaction.commit()

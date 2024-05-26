@@ -10,8 +10,23 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.alasorto.utils.InternetCheck
 import com.example.alasorto.utils.LocaleHelper
 import com.example.alasorto.utils.ThemeHelper
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.firestore.ktx.firestoreSettings
+import com.google.firebase.firestore.ktx.memoryCacheSettings
+import com.google.firebase.firestore.ktx.persistentCacheSettings
+import com.google.firebase.ktx.Firebase
 
 class AuthActivity : AppCompatActivity() {
+
+    init {
+       /* val settings = firestoreSettings {
+            // Use memory cache
+            setLocalCacheSettings(memoryCacheSettings {})
+            // Use persistent disk cache (default)
+            setLocalCacheSettings(persistentCacheSettings {})
+        }
+        Firebase.firestore.firestoreSettings = settings*/
+    }
 
     private val localeHelper = LocaleHelper()
     private val themeHelper = ThemeHelper()

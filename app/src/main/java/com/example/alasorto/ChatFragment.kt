@@ -14,6 +14,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.*
 import android.provider.OpenableColumns
+import android.util.Log
 import android.view.View
 import android.view.View.*
 import android.view.animation.Animation
@@ -55,6 +56,7 @@ import com.google.firebase.ktx.Firebase
 import com.yalantis.ucrop.UCrop
 import java.io.File
 import java.util.*
+import kotlin.collections.ArrayList
 
 class ChatFragment : Fragment(R.layout.fragment_chat) {
 
@@ -84,7 +86,6 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
     private val chatHistoryVM: ChatHistoryViewModel by viewModels()
     private val appViewModel: AppViewModel by viewModels()
     private val initDate = Date()
-    private val currentUserId = Firebase.auth.currentUser?.phoneNumber.toString()
     private val pendingMediaList = ArrayList<MediaData>()
     private val selectedMessagesList = ArrayList<Message>()
 
@@ -118,7 +119,7 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
     private var collectionPath: String = ""
     private var replyMessageId: String = ""
     private var voiceNoteId: String = ""
-    private var isAnonymous: Boolean = true
+    private var currentUserId = ""
     private var getMoreChat: Boolean = true
     private var isGroupChat: Boolean = false
     private var group: Group? = null
@@ -152,6 +153,8 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
 
         view.isClickable = true
 
+        currentUserId = (activity as MainActivity).getCurrentUserId()
+
         initializeWidgets(view)
 
         mentionsRV.setAdapterData(::selectMentionedUser)
@@ -165,23 +168,6 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         audioPath = requireContext().externalCacheDir!!.absolutePath
 
         initializeChatAdapter()
-
-        //Create LayoutManager
-        linearLayoutManager = object : LinearLayoutManager(requireContext()) {
-            //Set can scroll vertically or no to disable scroll while changing vc progress
-            override fun canScrollVertically(): Boolean {
-                return canScrollVertically
-            }
-        }
-
-        //linearLayoutManager.stackFromEnd = true
-        linearLayoutManager.reverseLayout
-
-        chatRV.layoutManager = linearLayoutManager
-        chatRV.addItemDecoration(LinearSpacingItemDecorator(20))
-        chatRV.adapter = chatAdapter
-
-        chatRV.addOnScrollListener(activeScrollListener)
 
         //getChatHistory
         /*chatHistoryVM.readAllData.observe(this.viewLifecycleOwner, Observer {
@@ -212,11 +198,9 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         internetCheck = InternetCheck(requireActivity().application)
         internetCheck.observe(this.viewLifecycleOwner) {
             hasConnection = it
-            if (it) {
-                if (!isChatLoadedFirstTime) {
-                    chatViewModel.getChat(collectionPath, chatId)
-                    isChatLoadedFirstTime = true
-                }
+            if (it && !isChatLoadedFirstTime) {
+                chatViewModel.getChat(collectionPath, chatId, currentUserId)
+                isChatLoadedFirstTime = true
             }
         }
 
@@ -327,7 +311,11 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         chatViewModel.updatedMessageMLD.observe(MainActivity(), Observer {
             if (it != null) {
                 val altMessageList =
-                    HandleMessages(messagesList, arrayListOf(it), chatAdapter).handleMessagesList()
+                    HandleMessages(
+                        messagesList,
+                        arrayListOf(it),
+                        chatAdapter
+                    ).handleMessagesList()
                 messagesList = altMessageList
             }
         })
@@ -437,7 +425,10 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                         val clipboardManager =
                             requireActivity().getSystemService(Context.CLIPBOARD_SERVICE) as (ClipboardManager)
                         val clipData =
-                            ClipData.newPlainText(selectedMessage.message, selectedMessage.message)
+                            ClipData.newPlainText(
+                                selectedMessage.message,
+                                selectedMessage.message
+                            )
                         clipboardManager.setPrimaryClip(clipData)
                     } else {
                         showMessageDetails(selectedMessage.seenBy)
@@ -451,12 +442,17 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         appViewModel.userByIdMLD.observe(this.viewLifecycleOwner, Observer {
             if (it != null) {
                 updateUsersList(it)
+
+                if (it.userId == chatId) {
+                    Glide.with(headerImage).load(it.imageLink)
+                        .placeholder(R.drawable.image_logo).into(headerImage)
+                    headerTitle.text = it.name
+                }
             }
         })
 
         val itemTouchHelper = ItemTouchHelper(controller)
         itemTouchHelper.attachToRecyclerView(chatRV)
-
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -476,7 +472,7 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             val mentionsList = ArrayList<String>()
             if (mentionedUsersList.size > 0) {
                 for (user in mentionedUsersList) {
-                    mentionsList.add(user.phone)
+                    mentionsList.add(user.userId)
                 }
             }
 
@@ -505,12 +501,18 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                 PendingMessage(0, chatId, collectionPath, message)
             pendingMessagesVM.addMessageItem(pendingMessage)
 
-            if (usersList.any { it1 -> it1.phone == currentUserId }) {
-                val currentUserName = usersList.first { it1 -> it1.phone == currentUserId }.name
+            if (usersList.any { it1 -> it1.userId == currentUserId }) {
+                val currentUserName =
+                    usersList.first { it1 -> it1.userId == currentUserId }.name
 
                 for (user in mentionedUsersList) {
                     val notifMessage = "$currentUserName mentioned you in a message"
-                    val dataMap = hashMapOf("case" to "Chat", "id" to chatId)
+                    val dataMap = hashMapOf(
+                        "case" to "Chat",
+                        "collectionPath" to collectionPath,
+                        "groupId" to chatId,
+                        "id" to message.messageId
+                    )
                     val date = DateUtils().getTime()
 
                     val notificationModel = NotificationModel(
@@ -526,14 +528,15 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                     val inAppNotificationData =
                         InAppNotificationData(
                             currentUserId,
-                            user.phone,
+                            user.userId,
                             notifMessage,
                             "",
                             date,
+                            false,
                             dataMap
                         )
 
-                    appViewModel.createInAppNotification(inAppNotificationData)
+                    appViewModel.createInAppNotification(inAppNotificationData, user.phone)
                 }
             }
             messageET.text!!.clear()
@@ -543,7 +546,7 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
         }
     }
 
-    private fun showMessageDetails(usersList: ArrayList<String>) {
+    private fun showMessageDetails(usersList: ArrayList<SeenBy>) {
         val fragment = SeenByFragment(usersList)
         val manager = requireActivity().supportFragmentManager
         val transaction = manager.beginTransaction()
@@ -563,9 +566,25 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             ::pauseAll,
             ::enlargeMedia,
             ::downloadFile,
-            ::changeMessageDetailsVisibility,
-            isAnonymous
+            ::changeMessageDetailsVisibility
         )
+
+        //Create LayoutManager
+        linearLayoutManager = object : LinearLayoutManager(requireContext()) {
+            //Set can scroll vertically or no to disable scroll while changing vc progress
+            override fun canScrollVertically(): Boolean {
+                return canScrollVertically
+            }
+        }
+
+        //linearLayoutManager.stackFromEnd = true
+        linearLayoutManager.reverseLayout
+
+        chatRV.layoutManager = linearLayoutManager
+        chatRV.addItemDecoration(LinearSpacingItemDecorator(20))
+        chatRV.adapter = chatAdapter
+
+        chatRV.addOnScrollListener(activeScrollListener)
     }
 
     private fun initializeSelectedMediaRecyclerview() {
@@ -628,7 +647,8 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             }
 
             if (group != null) {
-                Glide.with(headerImage).load(group!!.groupImageLink).into(headerImage)
+                Glide.with(headerImage).load(group!!.groupImageLink)
+                    .placeholder(R.drawable.image_logo).into(headerImage)
                 headerTitle.text = group!!.name
 
                 //Get group members and admins data
@@ -642,12 +662,12 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             }
 
             isGroupChat = args.getBoolean("IS_GROUP_CHAT")
-            chatId = args.getString("CHAT_ID")!!
+            chatId = args.getString("GROUP_ID", "")
             collectionPath = args.getString("COLLECTION_PATH")!!
-            isAnonymous = args.getBoolean("IS_ANONYMOUS")
+
 
             if (!isGroupChat) {
-                headerLayout.visibility = GONE
+                appViewModel.getUserById(chatId)
             }
         }
     }
@@ -667,13 +687,23 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                             chatViewModel.getNewMessages(
                                 collectionPath,
                                 chatId,
-                                lastSentMessage.date!!
+                                lastSentMessage.date!!, currentUserId
                             )
                         } else {
-                            chatViewModel.getNewMessages(collectionPath, chatId, initDate)
+                            chatViewModel.getNewMessages(
+                                collectionPath,
+                                chatId,
+                                initDate,
+                                currentUserId
+                            )
                         }
                     } else {
-                        chatViewModel.getNewMessages(collectionPath, chatId, initDate)
+                        chatViewModel.getNewMessages(
+                            collectionPath,
+                            chatId,
+                            initDate,
+                            currentUserId
+                        )
                     }
                 }
             }
@@ -739,16 +769,16 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
     private fun getUsers(messagesList: ArrayList<Message>) {
         for (message in messagesList) {
             for (userId in message.mentions) {
-                if (userId.isNotEmpty() && !usersList.any { it.phone == userId }) {
+                if (userId.isNotEmpty() && !usersList.any { it.userId == userId }) {
                     appViewModel.getUserById(userId)
                 }
             }
-            for (userId in message.seenBy) {
-                if (userId.isNotEmpty() && !usersList.any { it.phone == userId }) {
-                    appViewModel.getUserById(userId)
+            for (item in message.seenBy) {
+                if (!usersList.any { it.userId == item.userId }) {
+                    appViewModel.getUserById(item.userId)
                 }
             }
-            if (message.ownerId.isNotEmpty() && !usersList.any { it.phone == message.ownerId }) {
+            if (message.ownerId.isNotEmpty() && !usersList.any { it.userId == message.ownerId }) {
                 appViewModel.getUserById(message.ownerId)
             }
         }
@@ -773,7 +803,12 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
             chatRV.scrollToPosition(messagesList.indexOf(message))
         } else {
             if (hasConnection) {
-                chatViewModel.goToReplyMessage(collectionPath, chatId, message.date!!)
+                chatViewModel.goToReplyMessage(
+                    collectionPath,
+                    chatId,
+                    message.date!!,
+                    currentUserId
+                )
                 chatReachedBottom = false
             }
         }
@@ -903,7 +938,11 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                                 mediaHeight
                             )
                         pendingMediaList.add(mediaItem)
-                        selectedMediaAdapter.notifyItemInserted(pendingMediaList.indexOf(mediaItem))
+                        selectedMediaAdapter.notifyItemInserted(
+                            pendingMediaList.indexOf(
+                                mediaItem
+                            )
+                        )
                     }
                 } else {//one media items
                     val uri: Uri = data.data!!
@@ -1237,14 +1276,14 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
                 chatViewModel.getOlderChat(
                     collectionPath,
                     chatId,
-                    messagesList[0].date!!
+                    messagesList[0].date!!, currentUserId
                 )
             } else {
                 //Get chat after date of first item
                 chatViewModel.getNewerChat(
                     collectionPath,
                     chatId,
-                    messagesList.last().date!!
+                    messagesList.last().date!!, currentUserId
                 )
             }
             getMoreChat = false
@@ -1320,8 +1359,8 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
     }
 
     private fun updateUsersList(userData: UserData) {
-        if (usersList.any { it.phone == userData.phone }) {
-            usersList.removeAll { it.phone == userData.phone }
+        if (usersList.any { it.userId == userData.userId }) {
+            usersList.removeAll { it.userId == userData.userId }
         }
         usersList.add(userData)
         chatAdapter.updateUserList(usersList)
@@ -1350,9 +1389,7 @@ class ChatFragment : Fragment(R.layout.fragment_chat) {
     }
 
     private fun updateMentionsUsersList() {
-        messageET.editUsersList(
-            ArrayList(usersList)
-        )
+        messageET.editUsersList(ArrayList(usersList))
     }
 
     private fun selectMentionedUser(

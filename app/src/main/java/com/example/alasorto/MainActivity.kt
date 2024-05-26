@@ -7,7 +7,6 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.InsetDrawable
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View.GONE
@@ -19,9 +18,10 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContentProviderCompat.requireContext
+import androidx.core.content.ContextCompat.startActivity
 import androidx.fragment.app.FragmentContainerView
 import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import androidx.viewpager2.widget.ViewPager2
 import com.etebarian.meowbottomnavigation.MeowBottomNavigation
 import com.example.alasorto.adapters.MainFragmentsAdapter
@@ -32,19 +32,21 @@ import com.example.alasorto.notification.NotificationModel
 import com.example.alasorto.notification.NotificationViewModel
 import com.example.alasorto.offlineUserDatabase.OfflineUserData
 import com.example.alasorto.offlineUserDatabase.OfflineUserViewModel
+import com.example.alasorto.pendingAttendanceDatabase.PendingAttendance
+import com.example.alasorto.pendingAttendanceDatabase.PendingAttendanceViewModel
 import com.example.alasorto.pendingMessagesDatabase.PendingMessage
 import com.example.alasorto.pendingMessagesDatabase.PendingMessageViewModel
 import com.example.alasorto.utils.InternetCheck
 import com.example.alasorto.utils.LocaleHelper
-import com.example.alasorto.utils.SortUsers
 import com.example.alasorto.utils.ThemeHelper
 import com.example.alasorto.viewModels.AppViewModel
 import com.example.alasorto.viewModels.ChatViewModel
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import dagger.hilt.android.AndroidEntryPoint
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -53,36 +55,41 @@ class MainActivity : AppCompatActivity() {
     private val chatViewModel: ChatViewModel by viewModels()
     private val appViewModel: AppViewModel by viewModels()
     private val offlineUserViewModel: OfflineUserViewModel by viewModels()
-    private val phoneNum = Firebase.auth.currentUser?.phoneNumber
     private val localeHelper = LocaleHelper()
     private val themeHelper = ThemeHelper()
     private val pendingMessagesList = ArrayList<PendingMessage>()
     private val notificationArgsMap = HashMap<String, String>()
-    private val currentUserId = FirebaseAuth.getInstance().currentUser!!.phoneNumber
+    private val currentUserPhone = FirebaseAuth.getInstance().currentUser!!.phoneNumber
     private val uploadedMediaMap = HashMap<String, ArrayList<MediaData>>()
-
-    private lateinit var internetCheck: InternetCheck
-    private lateinit var connectionTV: TextView
-    private lateinit var fragmentContainer: FragmentContainerView
-    private lateinit var viewPager: ViewPager2
-    private lateinit var bottomNavigation: MeowBottomNavigation
-
-    private lateinit var dialog: Dialog
-    private lateinit var builder: android.app.AlertDialog.Builder
-    private lateinit var window: Window
 
     private var currentUser: UserData? = null
     private var usersList = ArrayList<UserData>()
     private var hasConnection = false
     private var isCurrentUserLoaded = false //Checks if current user is loaded from database
     private var offlineUser: UserData? = null
+    private var currentUserId = ""
 
     //Checks if fragment is loaded so app doesn't open fragment again
     private var isFragmentLoaded = false
+    private var currentUploadingAttendance: PendingAttendance? = null
+
+    private lateinit var internetCheck: InternetCheck
+    private lateinit var connectionTV: TextView
+    private lateinit var fragmentContainer: FragmentContainerView
+    private lateinit var viewPager: ViewPager2
+    private lateinit var bottomNavigation: MeowBottomNavigation
+    private lateinit var pendingAttendanceViewModel: PendingAttendanceViewModel
+
+    private lateinit var dialog: Dialog
+    private lateinit var dialogTV: TextView
+    private lateinit var builder: android.app.AlertDialog.Builder
+    private lateinit var window: Window
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        pendingAttendanceViewModel = ViewModelProvider(this)[PendingAttendanceViewModel::class.java]
 
         connectionTV = findViewById(R.id.tv_connection)
         bottomNavigation = findViewById(R.id.bottom_nav)
@@ -108,19 +115,17 @@ class MainActivity : AppCompatActivity() {
                 appViewModel.userToken()
                 appViewModel.setOnline()
 
-                pendingMessageViewModel.readAllData.observe(
-                    this, Observer
-                    { it1 ->
-                        if (it1 != null) {
-                            pendingMessagesList.clear()
-                            pendingMessagesList.addAll(it1.sortedBy { it3 -> it3.message.date })
-                            if (pendingMessagesList.isNotEmpty()) {
-                                for (message in pendingMessagesList) {
-                                    sendPendingMessages(message)
-                                }
+                pendingMessageViewModel.readAllData.observe(this, Observer { it1 ->
+                    if (it1 != null) {
+                        pendingMessagesList.clear()
+                        pendingMessagesList.addAll(it1.sortedBy { it3 -> it3.message.date })
+                        if (pendingMessagesList.isNotEmpty()) {
+                            for (message in pendingMessagesList) {
+                                sendPendingMessages(message)
                             }
                         }
-                    })
+                    }
+                })
 
             } else {
                 connectionTV.text = getString(R.string.disconnected)
@@ -135,16 +140,28 @@ class MainActivity : AppCompatActivity() {
         dialog.window!!.setBackgroundDrawable(
             InsetDrawable(ColorDrawable(Color.TRANSPARENT), 40)
         )
+        dialogTV = dialog.findViewById(R.id.tv_loading_dialog)
 
-        offlineUserViewModel.readAllData.observe(this, Observer { it1 ->
+        offlineUserViewModel.readAllData.observe(this, Observer
+        { it1 ->
             if (it1.isNotEmpty()) {
                 for (offlineUserData in it1) {
-                    SortUsers().sortUser(usersList, offlineUserData.user, offlineUserViewModel)
 
-                    if (offlineUserData.user.phone == currentUserId) {
+                    if (usersList.any { a -> a.userId == offlineUserData.user.userId }) {
+                        usersList.removeAll { a -> a.userId == offlineUserData.user.userId }
+                    }
+
+                    usersList.add(offlineUserData.user)
+
+                    if (offlineUserData.user.phone == currentUserPhone) {
                         currentUser = offlineUserData.user
+                        currentUserId = currentUser!!.userId
+                        if (!isFragmentLoaded) {
+                            initViewPager()
+                            setBottomNavigationItems()
+                            isFragmentLoaded = true
+                        }
                         appViewModel.currentUserMLD.value = currentUser
-
                         if (currentUser != null && !currentUser!!.verified) {
                             forceLogout()
                         }
@@ -153,7 +170,117 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        chatViewModel.messageSentMLD.observe(this, Observer {
+        appViewModel.removedAttendanceUser.observe(this, Observer {
+            if (currentUploadingAttendance != null) {
+                currentUploadingAttendance!!.startedUpload = true
+                currentUploadingAttendance!!.allUsers.remove(it)
+                pendingAttendanceViewModel.addAttendance(currentUploadingAttendance!!)
+                pendingAttendanceViewModel.getAttendanceById(currentUploadingAttendance!!.databaseId)
+            }
+        })
+
+        appViewModel.deletedUserIdMLD.observe(this, Observer {
+            offlineUserViewModel.deleteUserById(it)
+        })
+
+        pendingAttendanceViewModel.attendanceById.observe(this, Observer {
+            if (it != null) {
+                if (currentUploadingAttendance == null) {
+                    currentUploadingAttendance = it
+                    val attAllUsersList = currentUploadingAttendance!!.allUsers
+                    val attendanceId = currentUploadingAttendance!!.databaseId
+
+                    if (currentUploadingAttendance!!.isNewAttendance) {
+                        /*Somehow isEmpty returns false cuz it has "" element when empty*/
+                        for (user in attAllUsersList) {
+                            appViewModel.addUserAttendanceData(
+                                user,
+                                attendanceId,
+                                currentUploadingAttendance!!.attendedUsers.contains(user)
+                            )
+                        }
+                    } else { //Editing
+                            for (user in attAllUsersList) {
+                                appViewModel.editUserAttendanceData(
+                                    user,
+                                    attendanceId,
+                                    currentUploadingAttendance!!.attendedUsers.contains(user)
+                                )
+                            }
+                    }
+                    if (attAllUsersList.isEmpty() || attAllUsersList[0] != "") {
+                        if (currentUploadingAttendance!!.isNewAttendance) {
+                            appViewModel.createAttendanceData(currentUploadingAttendance!!)
+                        } else {
+                            appViewModel.updateAttendanceData(currentUploadingAttendance!!)
+                        }
+                    }
+                } else {
+                    val attAllUsersList = currentUploadingAttendance!!.allUsers
+                    if (attAllUsersList.isEmpty() || attAllUsersList[0] != "") {
+                        if (currentUploadingAttendance!!.isNewAttendance) {
+                            appViewModel.createAttendanceData(currentUploadingAttendance!!)
+                        } else {
+                            appViewModel.updateAttendanceData(currentUploadingAttendance!!)
+                        }
+                    }
+                }
+            }
+        })
+
+        pendingAttendanceViewModel.readAllData.observe(this, Observer {
+            if (it.any { a -> a.isDeleting }) {
+                if (currentUploadingAttendance == null) {
+                    currentUploadingAttendance = it.first { a -> a.isDeleting }
+                    val attAllUsersList = currentUploadingAttendance!!.allUsers
+                    val attendanceId = currentUploadingAttendance!!.databaseId
+
+                    for (user in attAllUsersList) {
+                        appViewModel.removeUserAttendanceData(
+                            user,
+                            attendanceId
+                        )
+                    }
+
+                    if (attAllUsersList.isEmpty() || attAllUsersList[0] != "") {
+                        appViewModel.deleteAttendanceData(currentUploadingAttendance!!)
+                    }
+                } else {
+                    val attAllUsersList = currentUploadingAttendance!!.allUsers
+                    if (attAllUsersList.isEmpty() || attAllUsersList[0] != "") {
+                        appViewModel.deleteAttendanceData(currentUploadingAttendance!!)
+                    }
+                }
+            }
+        })
+
+
+        appViewModel.finishedAttendanceMLD.observe(this, Observer
+        {
+            if (currentUploadingAttendance != null) {
+                val id = currentUploadingAttendance!!.databaseId
+                currentUploadingAttendance = null
+                pendingAttendanceViewModel.deleteAttendanceById(id)
+
+                val date = it.keys.first()
+                val case = if (it[it.keys.first()] == "NEW_ATT") {
+                    getString(R.string.creating)
+                } else if (it[it.keys.first()] == "EDIT_ATT") {
+                    getString(R.string.editing)
+                } else {
+                    getString(R.string.deleting)
+                }
+
+                Toast.makeText(
+                    this,
+                    "$case ${getString(R.string.attendance_of_date)} $date ${getString(R.string.was_successful)}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        })
+
+        chatViewModel.messageSentMLD.observe(this, Observer
+        {
 
             val sentMessage = pendingMessagesList.firstOrNull { it1 -> it1.message.messageId == it }
 
@@ -167,21 +294,21 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        //NotificationViewModel
-        notificationViewModel.connectionError.observe(this)
-        {
-            when (it) {
-                "sending" -> {
-                    Toast.makeText(this, "sending notification", Toast.LENGTH_SHORT).show()
-                }
-                "sent" -> {
-                    Toast.makeText(this, "notification sent", Toast.LENGTH_SHORT).show()
-                }
-                "error while sending" -> {
-                    Toast.makeText(this, "error while sending", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+/* //NotificationViewModel
+ notificationViewModel.connectionError.observe(this)
+ {
+     when (it) {
+         "sending" -> {
+             Toast.makeText(this, "sending notification", Toast.LENGTH_SHORT).show()
+         }
+         "sent" -> {
+             Toast.makeText(this, "notification sent", Toast.LENGTH_SHORT).show()
+         }
+         "error while sending" -> {
+             Toast.makeText(this, "error while sending", Toast.LENGTH_SHORT).show()
+         }
+     }
+ }*/
 
         notificationViewModel.response.observe(this)
         {
@@ -191,23 +318,30 @@ class MainActivity : AppCompatActivity() {
                     "Notification in Kotlin: $it "
                 )
         }
+
         appViewModel.currentUserMLD.observe(
             this, Observer
             {
-
                 if (it != null) {
 
                     if (currentUser != null) {
                         if (it != currentUser) {
-                            val oldOfflineUserData = OfflineUserData(currentUserId!!, currentUser!!)
+                            val oldOfflineUserData = OfflineUserData(it.userId, currentUser!!)
                             offlineUserViewModel.deleteUserItem(oldOfflineUserData)
+                        }
+
+                        if (currentUserId.isNotEmpty() && currentUser != null && !isFragmentLoaded) {
+                            setBottomNavigationItems()
+                            initViewPager()
+                            isFragmentLoaded = true
                         }
                     } else {
                         currentUser = it
+                        currentUserId = it.userId
                     }
 
-                    val newOfflineUserData = OfflineUserData(it.phone, it)
-                    offlineUserViewModel.updateUserItem(newOfflineUserData)
+                    val newOfflineUserData = OfflineUserData(it.userId, it)
+                    offlineUserViewModel.addUserItem(newOfflineUserData)
 
                     if (currentUser != null) {
                         if (!currentUser!!.verified) {
@@ -216,9 +350,6 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             })
-
-        setBottomNavigationItems()
-        initViewPager()
 
         bottomNavigation.setOnClickMenuListener {
             viewPager.setCurrentItem(it.id, true)
@@ -235,22 +366,26 @@ class MainActivity : AppCompatActivity() {
 
         appViewModel.usersMLD.observe(this, Observer
         {
-            if (it != null) {
-                val mUsersListReplica = usersList
-
-                val mNewList = SortUsers().sortUsers(mUsersListReplica, it, offlineUserViewModel)
-                usersList = mNewList
+            for (user in it) {
+                val offlineUserData = OfflineUserData(user.userId, user)
+                offlineUserViewModel.addUserItem(offlineUserData)
+                if (usersList.any { a -> a.userId == user.userId }) {
+                    usersList.removeAll { a -> a.userId == user.userId }
+                }
+                usersList.add(user)
             }
         })
 
-        appViewModel.groupByIdMLD.observe(this, Observer {
+        appViewModel.groupByIdMLD.observe(this, Observer
+        {
             if (it != null) {
                 goToGroupChat(it)
                 viewPager.setCurrentItem(2, true)
             }
         })
 
-        chatViewModel.uploadMediaDataMLD.observe(this, Observer {
+        chatViewModel.uploadMediaDataMLD.observe(this, Observer
+        {
             val key = it.keys.first()
             val mediaData = it[key]
             if (mediaData != null) {
@@ -299,7 +434,6 @@ class MainActivity : AppCompatActivity() {
                     left to right
                 }
 
-                Log.d("TEST_NOTIF", argsString)
                 if (argsMap.containsKey("case")) {
                     if (argsMap["case"] == "Chat") {
                         //ToDo: Personal chat too
@@ -349,7 +483,7 @@ class MainActivity : AppCompatActivity() {
         })
 
         //Observes Changes in user
-        Firebase.firestore.collection("Users")
+        Firebase.firestore.collection("Users").document(currentUserPhone!!)
             .addSnapshotListener { _, _ ->
                 appViewModel.getCurrentUser()
             }
@@ -369,20 +503,19 @@ class MainActivity : AppCompatActivity() {
         notificationViewModel.sendNotification(notificationModel)
     }
 
-    fun getCurrentUser(): UserData? {
-        return if (currentUser != null) {
-            currentUser!!
-        } else {
-            null
-        }
-    }
+    fun getCurrentUserData(): UserData? = currentUser
+
+    fun getCurrentUserId(): String = currentUserId
 
     fun getAllUsers(): ArrayList<UserData> {
         return usersList
     }
 
-    fun showLoadingDialog() {
+    fun showLoadingDialog(text: String? = null) {
         dialog.show()
+        if (!text.isNullOrEmpty()) {
+            dialogTV.text = text
+        }
     }
 
     fun dismissLoadingDialog() {
@@ -433,7 +566,6 @@ class MainActivity : AppCompatActivity() {
         val bundle = Bundle()
         bundle.putString("CHAT_ID", group.groupId)
         bundle.putString("COLLECTION_PATH", "GroupChat")
-        bundle.putBoolean("IS_ANONYMOUS", group.admins.isEmpty())
         bundle.putBoolean("IS_GROUP_CHAT", group.admins.isEmpty())
         bundle.putParcelable("GROUP", group)
         fragment.arguments = bundle
@@ -461,7 +593,7 @@ class MainActivity : AppCompatActivity() {
         val transaction = manager.beginTransaction()
         val args = Bundle()
         args.putBoolean("IS_POINTS_ET_ENABLED", false)
-        args.putString("PHONE_NUM", phoneNum)
+        args.putString("PHONE_NUM", currentUserPhone)
         args.putBoolean("isNewUser", true)
         fragment.arguments = args
         transaction.add(R.id.main_frame, fragment)
@@ -474,7 +606,7 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun logout() {
+    fun logout() {
         val builder = AlertDialog.Builder(this)
         builder.setCancelable(true)
         builder.setTitle(R.string.logout)

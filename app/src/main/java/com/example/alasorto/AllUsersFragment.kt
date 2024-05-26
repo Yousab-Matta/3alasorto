@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.alasorto.adapters.AllUsersAdapter
 import com.example.alasorto.dataClass.UserData
+import com.example.alasorto.offlineUserDatabase.OfflineUserViewModel
 import com.example.alasorto.utils.InternetCheck
 import com.example.alasorto.utils.LinearSpacingItemDecorator
 import com.example.alasorto.viewModels.AppViewModel
@@ -30,6 +31,7 @@ import com.google.firebase.ktx.Firebase
 
 class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
     private val viewModel: AppViewModel by viewModels()
+    private val offlineUsersViewModel: OfflineUserViewModel by viewModels()
 
     private val allUsersList = ArrayList<UserData>()
     private val usersFilteredList = ArrayList<UserData>()
@@ -51,6 +53,7 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
     private lateinit var internetCheck: InternetCheck
     private lateinit var pointsDialog: Dialog
     private lateinit var monthsDialog: Dialog
+    private lateinit var adminPermissionsDialog: Dialog
     private lateinit var sortDialog: Dialog
 
     @SuppressLint("NotifyDataSetChanged")
@@ -58,6 +61,8 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
         super.onViewCreated(view, savedInstanceState)
 
         view.isClickable = true
+
+        currentUser = (activity as MainActivity).getCurrentUserData()
 
         //Check internet connection
         internetCheck = InternetCheck(requireActivity().application)
@@ -71,18 +76,7 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
         //Initialize Widgets
         initViews(view)
 
-        allUsersList.addAll((activity as MainActivity).getAllUsers().sortedBy { it.name })
-        usersFilteredList.addAll(allUsersList)
-
-        currentUser = (activity as MainActivity).getCurrentUser()
         setRecyclerView()
-
-        viewModel.currentUserMLD.observe(this.viewLifecycleOwner, Observer {
-            if (it != null) {
-                currentUser = it
-                setRecyclerView()
-            }
-        })
 
         viewModel.counterMLD.observe(this.viewLifecycleOwner, Observer {
             if (it) {
@@ -135,11 +129,27 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
             override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
                 usersFilteredList.clear()
                 val searchText = p0.toString().lowercase()
-                for (user in allUsersList) {
-                    if (user.name.lowercase().contains(searchText)) {
-                        usersFilteredList.add(user)
+
+                if (allUsersList.any { it.name.lowercase().contains(searchText) }) {
+                    val userDataList =
+                        allUsersList.filter { it.name.lowercase().contains(searchText) }
+                    for (user in userDataList) {
+                        if (!usersFilteredList.any { it.userId == user.userId }) {
+                            usersFilteredList.add(user)
+                        }
                     }
                 }
+
+                if (allUsersList.any { it.phone.lowercase().contains(searchText) }) {
+                    val userDataList =
+                        allUsersList.filter { it.phone.lowercase().contains(searchText) }
+                    for (user in userDataList) {
+                        if (!usersFilteredList.any { it.userId == user.userId }) {
+                            usersFilteredList.add(user)
+                        }
+                    }
+                }
+
                 adapter.notifyDataSetChanged()
             }
 
@@ -158,6 +168,7 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
                         adapter.clearAllUsersSelection()
                         "0 Selected".also { selectedUserCounterTV.text = it }
                         selectedUserCounterTV.visibility = GONE
+                        selectAllUsersCheckBox.isChecked = false
                     } else {
                         requireActivity().supportFragmentManager.popBackStack(
                             "ALL_USERS_FRAGMENT",
@@ -168,13 +179,9 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
                 }
             })
 
-        //Notify changes in Comments database
         Firebase.firestore.collection("Users").addSnapshotListener { _, _ ->
             if (hasConnection) {
                 viewModel.getAllUsers()
-            } else {
-                //Toast always shown check later
-                //Toast.makeText(context, R.string.check_connection, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -248,6 +255,7 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
 
         val sortByNameTV: TextView = sortDialog.findViewById(R.id.tv_sort_by_name)
         val sortByMonthTV: TextView = sortDialog.findViewById(R.id.tv_sort_by_month)
+        val sortByPermissionsTV: TextView = sortDialog.findViewById(R.id.tv_sort_by_access)
         val sortByAttPercentTV: TextView =
             sortDialog.findViewById(R.id.tv_sort_by_attendance_percent)
 
@@ -263,9 +271,24 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
             sortDialog.dismiss()
         })
 
+        sortByPermissionsTV.setOnClickListener(OnClickListener {
+            showAdminPermissionsDialog()
+            sortDialog.dismiss()
+        })
+
         sortByAttPercentTV.setOnClickListener {
+
+            val attendedUsersList =
+                ArrayList(allUsersList.filter { a -> a.attendanceDue.isNotEmpty() && a.attendedTimes.isNotEmpty() }
+                    .sortedByDescending { a ->
+                        (a.attendedTimes.toSet().size / a.attendanceDue.toSet().size) * 100f
+                    })
+
+            val residualUsersList = allUsersList.filter { a -> a.attendanceDue.isEmpty() }
+
             usersFilteredList.clear()
-            usersFilteredList.addAll(allUsersList.sortedByDescending { it1 -> it1.attendedTimes / it1.attendanceDue })
+            usersFilteredList.addAll(attendedUsersList)
+            usersFilteredList.addAll(residualUsersList)
             adapter.notifyDataSetChanged()
             sortDialog.dismiss()
         }
@@ -283,6 +306,75 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
             )
         )
         sortDialog.show()
+    }
+
+    private fun showAdminPermissionsDialog() {
+        adminPermissionsDialog = Dialog(requireContext())
+        adminPermissionsDialog.setCancelable(true)
+        adminPermissionsDialog.setContentView(R.layout.layout_admin_rights)
+
+        var userPermissionCode = ""
+
+        //Init onclick
+        val onClick = OnClickListener { p0 ->
+            when (p0!!.id) {
+                R.id.tv_handle_users -> userPermissionCode = "HANDLE_USERS"
+                R.id.tv_handle_groups -> userPermissionCode = "HANDLE_GROUPS"
+                R.id.tv_handle_attendance -> userPermissionCode = "HANDLE_ATTENDANCE"
+                R.id.tv_handle_gallery -> userPermissionCode = "HANDLE_GALLERY"
+                R.id.tv_handle_notification -> userPermissionCode = "SEND_CUSTOM_NOTIFICATION"
+                R.id.tv_handle_user_permissions -> userPermissionCode =
+                    "HANDLE_USERS_PERMISSIONS"
+                R.id.tv_handle_verification -> userPermissionCode = "HANDLE_USERS_VERIFICATION"
+            }
+            sortUsersByPermissions(userPermissionCode)
+        }
+
+        //Init TVs
+        val handleUsersTV: TextView = adminPermissionsDialog.findViewById(R.id.tv_handle_users)
+        val handleGroupsTV: TextView =
+            adminPermissionsDialog.findViewById(R.id.tv_handle_groups)
+        val handleAttTV: TextView =
+            adminPermissionsDialog.findViewById(R.id.tv_handle_attendance)
+        val handleGalleryTV: TextView =
+            adminPermissionsDialog.findViewById(R.id.tv_handle_gallery)
+        val handleNotificationTV: TextView =
+            adminPermissionsDialog.findViewById(R.id.tv_handle_notification)
+        val handleUserPermissionsTV: TextView =
+            adminPermissionsDialog.findViewById(R.id.tv_handle_user_permissions)
+        val handleUsersVerificationTV: TextView =
+            adminPermissionsDialog.findViewById(R.id.tv_handle_verification)
+
+        //Set onclick to TVs
+        handleUsersTV.setOnClickListener(onClick)
+        handleGroupsTV.setOnClickListener(onClick)
+        handleAttTV.setOnClickListener(onClick)
+        handleGalleryTV.setOnClickListener(onClick)
+        handleNotificationTV.setOnClickListener(onClick)
+        handleUserPermissionsTV.setOnClickListener(onClick)
+        handleUsersVerificationTV.setOnClickListener(onClick)
+
+        val window = adminPermissionsDialog.window
+        window!!.setLayout(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT
+        )
+
+        window.setBackgroundDrawable(
+            InsetDrawable(
+                ColorDrawable(android.graphics.Color.TRANSPARENT),
+                50
+            )
+        )
+        adminPermissionsDialog.show()
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    private fun sortUsersByPermissions(permission: String) {
+        usersFilteredList.clear()
+        usersFilteredList.addAll(allUsersList.filter { it.access.contains(permission) })
+        adapter.notifyDataSetChanged()
+        adminPermissionsDialog.dismiss()
     }
 
     //Shows a dialog to select users where their birth month meets the month from the list
@@ -431,6 +523,7 @@ class AllUsersFragment : Fragment(R.layout.fragment_all_users) {
                 val selectedUsersList = adapter.getSelectedUsers()
                 for (user in selectedUsersList) {
                     viewModel.deleteUser(user.phone)
+                    offlineUsersViewModel.deleteUserById(user.userId)
                 }
             }
         }

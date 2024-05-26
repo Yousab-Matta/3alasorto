@@ -23,7 +23,8 @@ class GroupOfUsersAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val user = usersList[position]
         holder.nameTV.text = user.name
-        Glide.with(holder.userIV).load(user.imageLink).into(holder.userIV)
+        Glide.with(holder.userIV).load(user.imageLink).placeholder(R.drawable.image_logo)
+            .into(holder.userIV)
         /* val formatter = DecimalFormat("#.##")
          val percent = formatter.format(user.AttendedPercent)
          Log.d(TAG, "onBindViewHolder: ${user.AttendedPercent}")

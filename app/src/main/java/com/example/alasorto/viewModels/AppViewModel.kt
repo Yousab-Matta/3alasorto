@@ -7,10 +7,10 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.alasorto.dataClass.*
+import com.example.alasorto.pendingAttendanceDatabase.PendingAttendance
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.android.gms.tasks.OnFailureListener
 import com.google.android.gms.tasks.OnSuccessListener
@@ -19,18 +19,20 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
-import com.google.firebase.firestore.ktx.toObject
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageReference
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 @Suppress("DEPRECATION")
 class AppViewModel : ViewModel() {
     private val db = Firebase.firestore
+    private val allUsersList = ArrayList<UserData>()
 
     var usersMLD = MutableLiveData<ArrayList<UserData>>()
     var pendingVerifyUsersMLD = MutableLiveData<ArrayList<UserData>>()
@@ -40,6 +42,7 @@ class AppViewModel : ViewModel() {
     var dismissFragmentMLD = MutableLiveData<Boolean>()
     var safeSpaceCreatedMLD = MutableLiveData<SafeSpace>()
     var userByIdMLD = MutableLiveData<UserData?>()
+    var deletedUserIdMLD = MutableLiveData<String>()
     var remindersMLD = MutableLiveData<ArrayList<Reminder>>()
     var groupsListMLD = MutableLiveData<ArrayList<Group>>()
     var groupByIdMLD = MutableLiveData<Group>()
@@ -52,16 +55,32 @@ class AppViewModel : ViewModel() {
     var coverUploadedMLD = MutableLiveData<Boolean>()
     var safeSpaceList = MutableLiveData<ArrayList<SafeSpace>>()
     var safeSpaceItemMLD = MutableLiveData<SafeSpace?>()
-    var editSafeSpaceDetailsMLD = MutableLiveData<String>()
-    var deletedUserAttMLD = MutableLiveData<Boolean>()
-    var attendanceExistsMLD = MutableLiveData<Boolean>()
     var issuesListMLD = MutableLiveData<ArrayList<IssueData>>()
     var spiritualNoteListMLD = MutableLiveData<ArrayList<SpiritualNote>>()
     var inAppNotificationsMLD = MutableLiveData<ArrayList<InAppNotificationData>>()
     var groupWithActivity = MutableLiveData<String>()
+    var finishedAttendanceMLD = MutableLiveData<HashMap<String, String>>()
+
+    var removedAttendanceUser = MutableLiveData<String>()
+
+    private var currentUserId: String = ""
+    private var currentUserData: UserData? = null
 
     //Used to get the number of success events in case of repeating a function in a loop
     var counterMLD = MutableLiveData<Boolean>()
+
+    fun updateUsersList(userData: UserData) {
+        if (allUsersList.any { it.userId == userData.userId }) {
+            allUsersList.removeAll { it.userId == userData.userId }
+        }
+        allUsersList.add(userData)
+    }
+
+    fun readAllUsers(): ArrayList<UserData> = allUsersList
+
+    fun getCurrentUserId(): String = currentUserId
+
+    fun getCurrentUserData(): UserData? = currentUserData
 
     fun createUser(user: UserData) {
         val reference = db.collection("Users").document(user.phone)
@@ -70,8 +89,9 @@ class AppViewModel : ViewModel() {
             "access" to user.access,
             "bio" to user.bio,
             "phone" to user.phone,
-            "attendedTimes" to user.attendedTimes,
-            "attendanceDue" to user.attendanceDue,
+            "userId" to user.userId,
+            "attendedTimes" to ArrayList<String>(),
+            "attendanceDue" to ArrayList<String>(),
             "address" to user.address,
             "location" to user.location,
             "confessionPriest" to user.confessionPriest,
@@ -91,7 +111,6 @@ class AppViewModel : ViewModel() {
             "token" to ""
         )
 
-        Log.d("UPLOAD_TEST", user.phone)
         reference.set(userMap).addOnCompleteListener(OnCompleteListener {
             dismissFragmentMLD.value = it.isSuccessful
         })
@@ -120,16 +139,16 @@ class AppViewModel : ViewModel() {
     }
 
     fun setOnline() {
-        val userId = Firebase.auth.currentUser!!.phoneNumber!!
-        db.collection("Users").document(userId).update("visibilityStatus", "Online")
+        val userPhone = Firebase.auth.currentUser!!.phoneNumber!!
+        db.collection("Users").document(userPhone).update("visibilityStatus", "Online")
             .addOnCompleteListener {
                 getCurrentUser()
             }
     }
 
     fun setOffline() {
-        val userId = Firebase.auth.currentUser!!.phoneNumber!!
-        db.collection("Users").document(userId).update("visibilityStatus", "Offline")
+        val userPhone = Firebase.auth.currentUser!!.phoneNumber!!
+        db.collection("Users").document(userPhone).update("visibilityStatus", "Offline")
             .addOnCompleteListener {
                 getCurrentUser()
             }
@@ -141,16 +160,19 @@ class AppViewModel : ViewModel() {
         contentResolver: ContentResolver,
         userId: String
     ) {
+        val currentUserPhone = Firebase.auth.currentUser!!.phoneNumber!!
+
         uploadGroupImages(
             image,
             cover,
             "UserImage",
             "UserCover",
             "Users",
+            currentUserPhone,
             userId,
             "imageLink",
             "coverImageLink",
-            contentResolver
+            contentResolver,
         )
     }
 
@@ -166,7 +188,16 @@ class AppViewModel : ViewModel() {
     }
 
     fun getUserById(id: String) {
-        db.collection("Users").document(id).get()
+        db.collection("Users").whereEqualTo("userId", id).get()
+            .addOnSuccessListener {
+                if (it.size() > 0) {
+                    userByIdMLD.value = it.toObjects(UserData::class.java)[0]
+                }
+            }.addOnFailureListener { userByIdMLD.value = null }
+    }
+
+    fun getUserByPhone(phoneNum: String) {
+        db.collection("Users").document(phoneNum).get()
             .addOnSuccessListener {
                 userByIdMLD.value = it.toObject(UserData::class.java)
             }.addOnFailureListener { userByIdMLD.value = null }
@@ -174,12 +205,14 @@ class AppViewModel : ViewModel() {
 
     fun getCurrentUser() {
         if (Firebase.auth.currentUser != null) {
-            val phoneNum = Firebase.auth.currentUser!!.phoneNumber
-            val reference = db.collection("Users").document(phoneNum!!)
+            val userPhone = Firebase.auth.currentUser!!.phoneNumber!!
+            val reference = db.collection("Users").document(userPhone)
             reference.get().addOnCompleteListener(OnCompleteListener {
                 if (it.isSuccessful) {
                     if (it.result.exists()) {
-                        currentUserMLD.value = it.result.toObject(UserData::class.java)
+                        currentUserData = it.result.toObject(UserData::class.java)
+                        currentUserMLD.value = currentUserData
+                        currentUserId = currentUserData!!.userId
                     } else {
                         currentUserMLD.value = null
                     }
@@ -195,8 +228,9 @@ class AppViewModel : ViewModel() {
             }
     }
 
-    fun updateUserBio(bio: String, userId: String) {
-        val reference = db.collection("Users").document(userId)
+    fun updateUserBio(bio: String) {
+        val currentUserPhone = Firebase.auth.currentUser!!.phoneNumber!!
+        val reference = db.collection("Users").document(currentUserPhone)
         reference.update("bio", bio).addOnCompleteListener {
             dismissFragmentMLD.value = true
         }
@@ -221,11 +255,53 @@ class AppViewModel : ViewModel() {
     }
 
     fun deleteUser(id: String) {
-        db.collection("Users").document(id).delete().addOnSuccessListener {
-            FirebaseStorage.getInstance().getReference("Users").child(id).delete()
-                .addOnSuccessListener {
-                    counterMLD.value = true
+        deleteUserInAppNotification(id)
+    }
+
+    private fun deleteUserInAppNotification(id: String) {
+        val reference = db.collection("Users").document(id).collection("Notifications")
+
+        reference.get().addOnSuccessListener {
+            if (!it.isEmpty) {
+                reference.document(it.first().id).delete().addOnCompleteListener {
+                    deleteUserInAppNotification(id)
                 }
+            } else {
+                deleteSpiritualNotes(id)
+            }
+        }
+    }
+
+    private fun deleteSpiritualNotes(id: String) {
+        val reference = db.collection("Users").document(id).collection("SpiritualNotes")
+
+        reference.get().addOnSuccessListener { it1 ->
+            if (!it1.isEmpty) {
+                reference.document(it1.first().id).delete().addOnCompleteListener {
+                    deleteSpiritualNotes(id)
+                }
+            } else {
+                db.collection("Users").document(id).get().addOnSuccessListener { it2 ->
+                    val userData = it2.toObject(UserData::class.java)
+                    val userId = userData!!.userId
+
+                    val coverImageReference = FirebaseStorage.getInstance()
+                        .getReference("UserCover").child(userId)
+
+                    val userImageReference = FirebaseStorage.getInstance()
+                        .getReference("UserImage").child(userId)
+
+                    coverImageReference.delete().addOnCompleteListener {
+                        userImageReference.delete().addOnCompleteListener {
+                            db.collection("Users").document(id).delete()
+                                .addOnSuccessListener {
+                                    counterMLD.value = true
+                                    deletedUserIdMLD.value = userId
+                                }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -236,9 +312,9 @@ class AppViewModel : ViewModel() {
             }
     }
 
-    fun createInAppNotification(notification: InAppNotificationData) {
+    fun createInAppNotification(notification: InAppNotificationData, receiverPhone: String) {
         val reference =
-            db.collection("Users").document(notification.receiverId).collection("Notifications")
+            db.collection("Users").document(receiverPhone).collection("Notifications")
 
         val id = reference.document().id
         val dataMap = hashMapOf(
@@ -248,6 +324,7 @@ class AppViewModel : ViewModel() {
             "notificationId" to id,
             "date" to notification.date,
             "notificationData" to notification.notificationData,
+            "read" to notification.read
         )
         reference.document(id).set(dataMap)
     }
@@ -258,6 +335,11 @@ class AppViewModel : ViewModel() {
                 inAppNotificationsMLD.value =
                     ArrayList(it.toObjects(InAppNotificationData::class.java))
             }
+    }
+
+    fun markNotificationAsRead(notificationId: String) {
+        db.collection("Users").document(currentUserId).collection("Notifications")
+            .document(notificationId).update("read", true)
     }
 
     fun reportIssue(issue: IssueData) {
@@ -281,102 +363,151 @@ class AppViewModel : ViewModel() {
         }
     }
 
-    fun createAttendance(
-        attendance: Attendance, allUsersIdsList: ArrayList<String>
-    ) {
-        db.collection("Attendance")
-            .whereEqualTo("day", attendance.day)
-            .whereEqualTo("month", attendance.month)
-            .whereEqualTo("year", attendance.year).get().addOnCompleteListener {
-                if (it.isSuccessful) {
-                    if (it.result.documents.size >= 1) {
-                        attendanceExistsMLD.value = true
-                    } else {
-                        //Create new Attendance data on Firebase
-                        val reference = db.collection("Attendance")
-                        val id = reference.document().id
-                        //Get current Date
+    fun createAttendanceData(pendingAttendance: PendingAttendance) {
+        val attendance = pendingAttendance.attendance
 
-                        val attMap = hashMapOf(
-                            "day" to attendance.day,
-                            "month" to attendance.month,
-                            "year" to attendance.year,
-                            "id" to id,
-                            "date" to Date(),
-                            "usersIDs" to attendance.usersIDs
-                        )
-                        reference.document(id).set(attMap).addOnSuccessListener {
-                            handleCreateUserAttendanceUser(attendance.usersIDs!!, allUsersIdsList)
-                        }
-                    }
-                }
-            }
+        //Create new Attendance data on Firebase
+        val reference = db.collection("Attendance")
+        //Get current Date
+
+        val attMap = hashMapOf(
+            "day" to attendance.day,
+            "month" to attendance.month,
+            "year" to attendance.year,
+            "id" to attendance.id,
+            "date" to attendance.date,
+            "attendancePercentage" to attendance.attendancePercentage,
+            "usersIDs" to attendance.usersIDs
+        )
+        reference.document(attendance.id).set(attMap).addOnSuccessListener {
+            finishedAttendanceMLD.value =
+                hashMapOf(pendingAttendance.databaseId to "NEW_ATT")
+        }
     }
 
-    fun editAttendance(
-        addedUsersList: ArrayList<String>,
-        removedUsersList: ArrayList<String>,
-        updatedUsersList: ArrayList<String>,
-        attendanceId: String
-    ) {
-        db.collection("Attendance").document(attendanceId)
-            .update("usersIDs", updatedUsersList).addOnSuccessListener {
-                handleEditAttendanceUsers(addedUsersList, removedUsersList)
-            }
+    fun updateAttendanceData(pendingAttendance: PendingAttendance) {
+        val attendance = pendingAttendance.attendance
+        val reference = db.collection("Attendance").document(attendance.id)
+        reference.update(
+            "usersIDs",
+            attendance.usersIDs,
+            "attendancePercentage",
+            attendance.attendancePercentage
+        ).addOnSuccessListener {
+            finishedAttendanceMLD.value = hashMapOf(pendingAttendance.databaseId to "EDIT_ATT")
+        }
     }
 
-    private fun handleCreateUserAttendanceUser(
-        attendedUsersIds: ArrayList<String>,
-        allUsersIds: ArrayList<String>
-    ) {//Fun used to change attendance due and attended times for users
-        val userReference = db.collection("Users").document(allUsersIds[0])
-
-
-        userReference.update("attendanceDue", (FieldValue.increment(1))).addOnSuccessListener {
-            //ToDo:clean if else code cuz im lazy rn
-            if (attendedUsersIds.contains(allUsersIds[0])) {
-                userReference.update("attendedTimes", (FieldValue.increment(1)))
-                    .addOnSuccessListener {
-                        allUsersIds.removeAt(0)
-                        if (allUsersIds.size > 0) {
-                            handleCreateUserAttendanceUser(attendedUsersIds, allUsersIds)
-                        } else {
-                            dismissFragmentMLD.value = true
-                        }
-                    }
-            } else {
-                allUsersIds.removeAt(0)
-                if (allUsersIds.size > 0) {
-                    handleCreateUserAttendanceUser(attendedUsersIds, allUsersIds)
-                } else {
-                    dismissFragmentMLD.value = true
-                }
+    fun editUserFields() {
+        db.collection("Users").get().addOnSuccessListener {
+            for (doc in it.documents) {
+                db.collection("Users").document(doc.id).update(
+                    "attendanceDue",
+                    FieldValue.delete(),
+                    "attendedTimes",
+                    FieldValue.delete()
+                )
             }
         }
     }
 
-    private fun handleEditAttendanceUsers(
-        addedUsersIdsList: ArrayList<String>,
-        removedUsersIdsList: ArrayList<String>
-    ) {
-        if (addedUsersIdsList.size > 0) {
-            db.collection("Users").document(addedUsersIdsList[0])
-                .update("attendedTimes", (FieldValue.increment(1)))
-                .addOnSuccessListener {
-                    addedUsersIdsList.removeAt(0)
-                    handleEditAttendanceUsers(addedUsersIdsList, removedUsersIdsList)
-                }
-        } else {
-            if (removedUsersIdsList.size > 0) {
-                db.collection("Users").document(removedUsersIdsList[0])
-                    .update("attendedTimes", (FieldValue.increment(-1)))
-                    .addOnSuccessListener {
-                        removedUsersIdsList.removeAt(0)
-                        handleEditAttendanceUsers(addedUsersIdsList, removedUsersIdsList)
+    fun addUserAttendanceData(userId: String, databaseId: String, addAttendedTimes: Boolean) {
+
+        db.collection("Users").whereEqualTo("userId", userId).get()
+            .addOnSuccessListener {
+                if (it.size() > 0) {
+                    val userPhone =
+                        it.first().toObject(UserData::class.java).phone
+                    val userReference =
+                        db.collection("Users").document(userPhone)
+
+                    val operation = if (addAttendedTimes) {
+                        userReference.update(
+                            "attendanceDue",
+                            (FieldValue.arrayUnion(databaseId)),
+                            "attendedTimes",
+                            (FieldValue.arrayUnion(databaseId))
+                        )
+                    } else {
+                        userReference.update(
+                            "attendanceDue", (FieldValue.arrayUnion(databaseId)),
+                            "attendedTimes",
+                            (FieldValue.arrayRemove(databaseId))
+                        )
                     }
-            } else {
-                dismissFragmentMLD.value = true
+
+                    operation.addOnSuccessListener {
+                        removedAttendanceUser.value = userId
+                    }
+
+                }
             }
+    }
+
+    fun removeUserAttendanceData(userId: String, databaseId: String) {
+
+        db.collection("Users").whereEqualTo("userId", userId).get()
+            .addOnSuccessListener {
+                if (it.size() > 0) {
+                    val userPhone =
+                        it.first().toObject(UserData::class.java).phone
+                    val userReference =
+                        db.collection("Users").document(userPhone)
+
+                    userReference.update(
+                        "attendanceDue",
+                        (FieldValue.arrayRemove(databaseId)),
+                        "attendedTimes",
+                        (FieldValue.arrayRemove(databaseId))
+                    ).addOnSuccessListener {
+                        removedAttendanceUser.value = userId
+                    }
+
+                }
+            }
+    }
+
+    fun editUserAttendanceData(userId: String, databaseId: String, addAtt: Boolean) {
+        db.collection("Users").whereEqualTo("userId", userId).get()
+            .addOnSuccessListener {
+                if (it.size() > 0) {
+                    val userPhone =
+                        it.first().toObject(UserData::class.java).phone
+                    val userReference =
+                        db.collection("Users").document(userPhone)
+
+                    val operation = if (addAtt) {
+                        userReference.update(
+                            "attendanceDue",
+                            (FieldValue.arrayUnion(databaseId)),
+                            "attendedTimes",
+                            (FieldValue.arrayUnion(databaseId))
+                        )
+                    } else {
+                        userReference.update(
+                            "attendanceDue",
+                            (FieldValue.arrayUnion(databaseId)),
+                            "attendedTimes",
+                            (FieldValue.arrayRemove(databaseId))
+                        )
+                    }
+
+                    operation.addOnSuccessListener {
+                        removedAttendanceUser.value = userId
+                    }
+                }
+            }
+    }
+
+    fun resetAtt(allUsersList: ArrayList<String>) {
+        for (user in allUsersList) {
+            val userReference = db.collection("Users").document(user)
+            userReference.update(
+                "attendanceDue",
+                ArrayList<String>(),
+                "attendedTimes",
+                ArrayList<String>()
+            )
         }
     }
 
@@ -392,7 +523,8 @@ class AppViewModel : ViewModel() {
     fun getAttendanceByDate(day: Int, month: Int, year: Int) {
         val attList = ArrayList<Attendance>()
         val reference =
-            db.collection("Attendance").whereEqualTo("day", day).whereEqualTo("month", month)
+            db.collection("Attendance").whereEqualTo("day", day)
+                .whereEqualTo("month", month)
                 .whereEqualTo("year", year)
         reference.get().addOnCompleteListener(OnCompleteListener {
             if (it.isSuccessful) {
@@ -412,33 +544,12 @@ class AppViewModel : ViewModel() {
         })
     }
 
-    fun deleteAttendance(attendanceId: String, date: Date, usersIds: ArrayList<String>) {
-        val reference = db.collection("Users").whereLessThanOrEqualTo("creationDate", date)
-        reference.get().addOnCompleteListener {
-            if (it.isSuccessful) {
-                for (document in it.result) {
-                    val userData = document.toObject(UserData::class.java)
-                    if (userData.attendanceDue >= 1) {
-                        document.reference.update("attendanceDue", userData.attendanceDue - 1)
-                            .addOnCompleteListener {
-                                if (usersIds.contains(userData.phone)) {
-                                    document.reference.update(
-                                        "attendedTimes",
-                                        userData.attendedTimes - 1
-                                    )
-                                        .addOnCompleteListener {
-                                            deletedUserAttMLD.value = true
-                                        }
-                                }
-                            }
-                    }
-                }
-                db.collection("Attendance").document(attendanceId).delete()
-                    .addOnSuccessListener {
-                        deletedUserAttMLD.value = true
-                    }
+    fun deleteAttendanceData(pendingAttendance: PendingAttendance) {
+        db.collection("Attendance").document(pendingAttendance.attendance.id).delete()
+            .addOnSuccessListener {
+                finishedAttendanceMLD.value =
+                    hashMapOf(pendingAttendance.databaseId to "DELETE_ATT")
             }
-        }
     }
 
     fun createReminder(reminder: Reminder) {
@@ -534,7 +645,7 @@ class AppViewModel : ViewModel() {
                 groupImage, groupCover,
                 "GroupImages",
                 "GroupCovers",
-                "Groups", id, "groupImageLink",
+                "Groups", id, "", "groupImageLink",
                 "groupCoverImageLink", contentResolver
             )
         }
@@ -562,6 +673,7 @@ class AppViewModel : ViewModel() {
                 "GroupCovers",
                 "Groups",
                 groupId,
+                "",
                 "groupImageLink",
                 "groupCoverImageLink",
                 contentResolver
@@ -609,27 +721,66 @@ class AppViewModel : ViewModel() {
     }
 
     fun deleteGroup(groupId: String) {
-        val reference = db.collection("Groups").document(groupId)
-        val chatReference = db.collection("GroupChat").document(groupId)
-        val storageReference = FirebaseStorage.getInstance().getReference("Groups")
-        //ToDo: delete folder
-        val groupChatReference =
-            FirebaseStorage.getInstance().getReference("GroupChat").child(groupId)
+        deleteChatMedia(groupId)
+    }
 
-        reference.delete().addOnCompleteListener {
-            chatReference.delete().addOnCompleteListener {
-                storageReference.child("$groupId Image").delete().addOnCompleteListener {
-                    storageReference.child("$groupId Cover").delete().addOnCompleteListener {
-                        groupChatReference.delete().addOnCompleteListener {
-                            dismissFragmentMLD.value = true
+    private fun deleteChatMedia(groupId: String) {
+        FirebaseStorage.getInstance().getReference("Chat").child(groupId).listAll()
+            .addOnCompleteListener {
+                if (it.result.prefixes.isNotEmpty()) {
+                    deleteChatMessageFolder(it.result.prefixes.first(), 0, groupId)
+                } else {
+                    val groupReference = db.collection("Groups").document(groupId)
+
+                    val groupCoverReference =
+                        FirebaseStorage.getInstance().getReference("GroupCovers").child(groupId)
+
+                    val groupImageReference =
+                        FirebaseStorage.getInstance().getReference("GroupImages").child(groupId)
+
+                    groupCoverReference.delete().addOnCompleteListener {
+                        groupImageReference.delete().addOnCompleteListener {
+                            deleteChatDocuments(groupId)
                         }
                     }
                 }
             }
+    }
+
+    private fun deleteChatDocuments(groupId: String) {
+        val groupReference = db.collection("Groups").document(groupId).collection("Chats")
+        groupReference.get()
+            .addOnSuccessListener {
+                if (!it.isEmpty) {
+                    groupReference.document(it.documents.first().id).delete()
+                        .addOnSuccessListener {
+                            deleteChatDocuments(groupId)
+                        }
+                } else {
+                    db.collection("Groups").document(groupId).delete().addOnSuccessListener {
+                        dismissFragmentMLD.value = true
+                    }
+                }
+            }
+    }
+
+    private fun deleteChatMessageFolder(
+        storageReference: StorageReference,
+        index: Int,
+        groupId: String
+    ) {
+        storageReference.child(index.toString()).delete().addOnSuccessListener {
+            deleteChatMessageFolder(storageReference, index + 1, groupId)
+        }.addOnFailureListener {
+            deleteChatMedia(groupId)
         }
     }
 
-    fun addGalleryItem(galleryItem: GalleryItem, uri: Uri?, contentResolver: ContentResolver) {
+    fun addGalleryItem(
+        galleryItem: GalleryItem,
+        uri: Uri?,
+        contentResolver: ContentResolver
+    ) {
         val reference = db.collection("Gallery")
         val id = reference.document().id
         val galleryMap = hashMapOf(
@@ -671,7 +822,6 @@ class AppViewModel : ViewModel() {
         }
     }
 
-
     fun editGalleryItemCount(itemId: String, newItemCount: Int) {
         val reference = db.collection("Gallery").document(itemId)
         reference.update("itemsRemaining", newItemCount)
@@ -689,10 +839,14 @@ class AppViewModel : ViewModel() {
     }
 
     fun deleteGalleryItem(itemId: String) {
-        db.collection("Gallery").document(itemId).delete()
-            .addOnCompleteListener(OnCompleteListener {
-                dismissFragmentMLD.value = true
-            })
+
+        FirebaseStorage.getInstance().getReference("Gallery").child(itemId).delete()
+            .addOnCompleteListener {
+                db.collection("Gallery").document(itemId).delete()
+                    .addOnCompleteListener {
+                        dismissFragmentMLD.value = true
+                    }
+            }
     }
 
     fun createGalleryRequest(
@@ -721,12 +875,20 @@ class AppViewModel : ViewModel() {
     }
 
     fun deleteGalleryRequest(galleryRequest: GalleryRequest) {
-        val reference = db.collection("GalleryRequests").document(galleryRequest.requestId)
-        reference.delete().addOnSuccessListener {
-            if (galleryRequest.requestStatus != "Delivered") {
-                editUserPoints(galleryRequest.price.toLong(), galleryRequest.requestOwner)
+
+        FirebaseStorage.getInstance().getReference("GalleryRequests")
+            .child(galleryRequest.requestId).delete()
+            .addOnCompleteListener {
+                db.collection("GalleryRequests").document(galleryRequest.requestId).delete()
+                    .addOnCompleteListener {
+                        if (galleryRequest.requestStatus != "Delivered") {
+                            editUserPoints(
+                                galleryRequest.price.toLong(),
+                                galleryRequest.requestOwner
+                            )
+                        }
+                    }
             }
-        }
     }
 
     fun getGalleryRequests() {
@@ -770,21 +932,34 @@ class AppViewModel : ViewModel() {
         }
     }
 
+    fun deleteGalleryWishList(itemId: String) {
+        val itemImageReference =
+            FirebaseStorage.getInstance().getReference("GalleryWishList").child(itemId)
+
+        db.collection("GalleryWishList").get().addOnSuccessListener {
+            itemImageReference.delete().addOnSuccessListener {
+                dismissFragmentMLD.value = true
+            }
+        }
+    }
+
     fun checkForGroupNewActivity(collectionPath: String, groupId: String, userId: String) {
         db.collection(collectionPath).document(groupId)
             .collection("Chats").orderBy("date", Query.Direction.DESCENDING).limit(1)
             .get().addOnSuccessListener {
                 if (it.size() > 0) {
                     val lastMessage = it.last().toObject(Message::class.java)
-                    if (lastMessage.ownerId != userId && !lastMessage.seenBy.contains(userId)) {
+                    if (lastMessage.ownerId != userId && !lastMessage.seenBy.any { a -> a.userId == userId }) {
                         groupWithActivity.value = groupId
                     }
                 }
             }
     }
 
-    fun getSpiritualNote(userId: String) {
-        db.collection("SpiritualNotes").whereEqualTo("ownerId", userId).get()
+    fun getSpiritualNote() {
+        db.collection("Users")
+            .document(FirebaseAuth.getInstance().currentUser!!.phoneNumber!!)
+            .collection("SpiritualNotes").get()
             .addOnCompleteListener {
                 if (it.isSuccessful) {
                     spiritualNoteListMLD.value =
@@ -794,8 +969,11 @@ class AppViewModel : ViewModel() {
     }
 
     fun createSpiritualNote(spiritualNote: SpiritualNote) {
-        db.collection("SpiritualNotes").whereEqualTo("ownerId", spiritualNote.ownerId)
-            .whereEqualTo("day", spiritualNote.day).whereEqualTo("month", spiritualNote.month)
+        db.collection("Users")
+            .document(FirebaseAuth.getInstance().currentUser!!.phoneNumber!!)
+            .collection("SpiritualNotes").whereEqualTo("ownerId", spiritualNote.ownerId)
+            .whereEqualTo("day", spiritualNote.day)
+            .whereEqualTo("month", spiritualNote.month)
             .whereEqualTo("year", spiritualNote.year).get().addOnCompleteListener {
                 if (it.isSuccessful && it.result.documents.size > 0) {
                     editSpiritualNote(spiritualNote)
@@ -819,7 +997,9 @@ class AppViewModel : ViewModel() {
                         "id" to spiritualNote.id,
                         "ownerId" to spiritualNote.ownerId
                     )
-                    db.collection("SpiritualNotes").document(spiritualNote.id).set(map)
+                    db.collection("Users")
+                        .document(FirebaseAuth.getInstance().currentUser!!.phoneNumber!!)
+                        .collection("SpiritualNotes").document(spiritualNote.id).set(map)
                         .addOnCompleteListener {
                             dismissFragmentMLD.value = true
                         }
@@ -828,7 +1008,9 @@ class AppViewModel : ViewModel() {
     }
 
     fun editSpiritualNote(spiritualNote: SpiritualNote) {
-        val reference = db.collection("SpiritualNotes").document(spiritualNote.id)
+        val reference = db.collection("Users")
+            .document(FirebaseAuth.getInstance().currentUser!!.phoneNumber!!)
+            .collection("SpiritualNotes").document(spiritualNote.id)
         reference.get().addOnCompleteListener {
             if (it.isSuccessful && it.result.exists()) {
                 reference.update(
@@ -878,10 +1060,8 @@ class AppViewModel : ViewModel() {
 
         val itemMap = hashMapOf(
             "ownerId" to safeSpace.ownerId,
-            "details" to safeSpace.details,
             "itemName" to safeSpace.itemId,
-            "date" to Date(),
-            "hiddenUser" to safeSpace.hiddenUser,
+            "date" to safeSpace.date
         )
 
         reference.document(safeSpace.ownerId).set(itemMap).addOnCompleteListener {
@@ -908,37 +1088,32 @@ class AppViewModel : ViewModel() {
         }
     }
 
-    fun editSafeSpaceDetails(details: String, userId: String) {
-        db.collection("ChatWithFather").document(userId).update("details", details)
-            .addOnCompleteListener {
-                if (it.isSuccessful) {
-                    getSafeSpaceById(userId)
-                }
-            }
-    }
-
     private fun uploadGroupImages(
         image: Uri?,
         cover: Uri?,
         imageLocation: String,
         coverLocation: String,
         collection: String,
-        child: String,
+        documentId: String,
+        userId: String,
         imageField: String,
         coverField: String,
         contentResolver: ContentResolver
     ) {
+
         if (image != null) {
             val imageData = uriToByteArray(image, contentResolver)
             val storageReference = FirebaseStorage.getInstance()
-                .getReference(imageLocation).child(child)
+                .getReference(imageLocation).child(userId)
             val uploadTask = storageReference.putBytes(imageData)
             uploadTask.addOnSuccessListener(OnSuccessListener {
                 storageReference.downloadUrl
                     .addOnSuccessListener {
                         val url = it.toString()
-                        db.collection(collection).document(child).update(imageField, url)
-                        imageUploadedMLD.value = true
+                        db.collection(collection).document(documentId).update(imageField, url)
+                            .addOnSuccessListener {
+                                imageUploadedMLD.value = true
+                            }
                     }.addOnFailureListener(OnFailureListener {
                         imageUploadedMLD.value = false
                     })
@@ -950,13 +1125,13 @@ class AppViewModel : ViewModel() {
         if (cover != null) {
             val coverData = uriToByteArray(cover, contentResolver)
             val storageReference = FirebaseStorage.getInstance()
-                .getReference(coverLocation).child(child)
+                .getReference(coverLocation).child(documentId)
             val uploadTask = storageReference.putBytes(coverData)
             uploadTask.addOnSuccessListener(OnSuccessListener {
                 storageReference.downloadUrl
                     .addOnSuccessListener {
                         val url = it.toString()
-                        db.collection(collection).document(child)
+                        db.collection(collection).document(documentId)
                             .update(coverField, url)
                         coverUploadedMLD.value = true
                     }.addOnFailureListener(OnFailureListener {
@@ -1014,7 +1189,8 @@ class AppViewModel : ViewModel() {
 
         reference.putFile(videoUri).addOnSuccessListener {
             reference.downloadUrl.addOnSuccessListener {
-                db.collection("VideoPosts").document(postId).update("videoLink", it.toString())
+                db.collection("VideoPosts").document(postId)
+                    .update("videoLink", it.toString())
                     .addOnSuccessListener {
                         dismissFragmentMLD.value = true
                     }
@@ -1027,12 +1203,12 @@ class AppViewModel : ViewModel() {
 
     //Get Device token
     fun userToken() {
-        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        val userPhone = FirebaseAuth.getInstance().currentUser!!.phoneNumber!!
         FirebaseMessaging.getInstance().token.addOnCompleteListener(OnCompleteListener {
             if (it.isSuccessful) {
                 val token = it.result
-                if (firebaseUser != null) {
-                    db.collection("Users").document(firebaseUser.phoneNumber.toString())
+                if (userPhone != null) {
+                    db.collection("Users").document(userPhone)
                         .update("token", token)
                 }
             }

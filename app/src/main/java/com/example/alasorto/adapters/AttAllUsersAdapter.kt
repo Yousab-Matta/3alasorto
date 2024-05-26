@@ -90,13 +90,11 @@ class AttAllUsersAdapter(
             if (attendedUsersList.contains(selectedUser)) {
                 adapter.onClickListener.onClick(
                     selectedUser,
-                    false,
                     layoutPosition
                 )
             } else {
                 adapter.onClickListener.onClick(
                     selectedUser,
-                    true,
                     layoutPosition
                 )
             }
@@ -104,6 +102,6 @@ class AttAllUsersAdapter(
     }
 
     interface OnClickListener {
-        fun onClick(user: UserData, attend: Boolean, position: Int)
+        fun onClick(user: UserData, position: Int)
     }
 }

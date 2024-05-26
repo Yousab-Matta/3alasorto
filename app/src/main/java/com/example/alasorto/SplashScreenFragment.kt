@@ -28,7 +28,6 @@ class SplashScreenFragment : Fragment() {
     private val timer = Timer()
 
     private var isLoggedIn = false
-    private var permissions: String = ""
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
